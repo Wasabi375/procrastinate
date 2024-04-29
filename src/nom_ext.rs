@@ -1,4 +1,4 @@
-use nom::{error::ParseError, Parser};
+use nom::{combinator::eof, error::ParseError, sequence::pair, IResult, InputLength, Parser};
 
 pub fn alt_many<I, O, E, P, Ps>(mut parsers: Ps) -> impl Parser<I, O, E>
 where
@@ -14,5 +14,17 @@ where
             }
         }
         nom::combinator::fail::<I, O, E>(input)
+    }
+}
+
+pub fn consume_all<I, O, E, P>(parser: P) -> impl FnMut(I) -> IResult<I, O, E>
+where
+    P: Parser<I, O, E> + Clone,
+    I: InputLength + Clone,
+    E: ParseError<I>,
+{
+    move |input: I| {
+        let (input, (o, _)) = pair(parser.clone(), eof)(input.clone())?;
+        Ok((input, o))
     }
 }
