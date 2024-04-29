@@ -135,8 +135,7 @@ pub fn parse_rough_instant(input: &str) -> IResult<&str, RoughInstant> {
 mod rough_instant {
     use crate::{
         nom_ext::alt_many,
-        time::{DAYS_IN_WEEK, MONTHS},
-        RoughInstant,
+        time::{RoughInstant, DAYS_IN_WEEK, MONTHS},
     };
     use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime};
     use nom::{
@@ -462,7 +461,10 @@ mod repeat_exact {
         IResult,
     };
 
-    use crate::{nom_ext::alt_many, time::DAYS_IN_WEEK, RepeatExact};
+    use crate::{
+        nom_ext::alt_many,
+        time::{RepeatExact, DAYS_IN_WEEK},
+    };
 
     use super::{parse_digits, parse_time};
 
