@@ -1,12 +1,6 @@
 use chrono::{NaiveDateTime, NaiveTime};
-use nom::combinator::complete;
-use std::{str::FromStr, time::Duration};
 
-mod parsing;
-
-use parsing::{parse_duration, parse_repeat_exact, parse_rough_instant};
-
-use crate::nom_ext::consume_all;
+pub mod parsing;
 
 const SECONDS_IN_HOUR: u64 = 60 * 60;
 const SECONDS_IN_DAY: u64 = SECONDS_IN_HOUR * 24;
@@ -49,21 +43,6 @@ pub enum RoughInstant {
     Month { month: u8 },
 }
 
-impl FromStr for RoughInstant {
-    type Err = nom::Err<String>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match consume_all(parse_rough_instant)(s) {
-            Ok((_, instant)) => Ok(instant),
-            Err(error) => match error {
-                nom::Err::Incomplete(err) => Err(nom::Err::Incomplete(err)),
-                nom::Err::Error(err) => Err(nom::Err::Error(err.to_string())),
-                nom::Err::Failure(err) => Err(nom::Err::Failure(err.to_string())),
-            },
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RepeatExact {
     DayOfMonth {
@@ -80,37 +59,4 @@ pub enum RepeatExact {
     Daily {
         time: Option<NaiveTime>,
     },
-}
-
-impl FromStr for RepeatExact {
-    type Err = nom::Err<String>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match consume_all(parse_repeat_exact)(s) {
-            Ok((_, repeat)) => Ok(repeat),
-            Err(error) => match error {
-                nom::Err::Incomplete(err) => Err(nom::Err::Incomplete(err)),
-                nom::Err::Error(err) => Err(nom::Err::Error(err.to_string())),
-                nom::Err::Failure(err) => Err(nom::Err::Failure(err.to_string())),
-            },
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Delay(Duration);
-
-impl FromStr for Delay {
-    type Err = nom::Err<String>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match consume_all(parse_duration)(s) {
-            Ok((_, duration)) => Ok(Delay(duration)),
-            Err(error) => match error {
-                nom::Err::Incomplete(err) => Err(nom::Err::Incomplete(err)),
-                nom::Err::Error(err) => Err(nom::Err::Error(err.to_string())),
-                nom::Err::Failure(err) => Err(nom::Err::Failure(err.to_string())),
-            },
-        }
-    }
 }

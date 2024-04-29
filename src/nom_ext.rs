@@ -17,14 +17,14 @@ where
     }
 }
 
-pub fn consume_all<I, O, E, P>(parser: P) -> impl FnMut(I) -> IResult<I, O, E>
+pub fn consume_all<I, O, E, P>(mut parser: P) -> impl FnMut(I) -> IResult<I, O, E>
 where
-    P: Parser<I, O, E> + Clone,
+    P: Parser<I, O, E>,
     I: InputLength + Clone,
     E: ParseError<I>,
 {
     move |input: I| {
-        let (input, (o, _)) = pair(parser.clone(), eof)(input.clone())?;
+        let (input, (o, _)) = pair(|input| parser.parse(input), eof)(input.clone())?;
         Ok((input, o))
     }
 }
