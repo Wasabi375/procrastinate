@@ -1,6 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
-use chrono::{NaiveDateTime, NaiveTime};
+use chrono::{Datelike, Days, Local, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
 use nom::{branch::alt, IResult};
 use serde::{Deserialize, Serialize};
 
@@ -119,12 +119,51 @@ impl FromStr for RepeatTiming {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RoughInstant {
-    DayOfMonth { day: u8, time: Option<NaiveTime> },
-    DayOfWeek { day: u8, time: Option<NaiveTime> },
-    Today { time: NaiveTime },
-    Tomorrow { time: Option<NaiveTime> },
-    Date { date: NaiveDateTime },
-    Month { month: u8 },
+    DayOfMonth {
+        day: u8,
+        time: Option<NaiveTime>,
+    },
+    DayOfWeek {
+        /// Mon = 0, Tue = 1, etc
+        day: u8,
+        time: Option<NaiveTime>,
+    },
+    Date {
+        date: NaiveDateTime,
+    },
+    Month {
+        month: u8,
+    },
+}
+
+fn monday_same_week(date: &NaiveDate) -> NaiveDate {
+    let days_since_mon = date.weekday().days_since(Weekday::Mon);
+    *date - Days::new(days_since_mon.into())
+}
+
+impl RoughInstant {
+    pub fn notification_date(&self) -> NaiveDateTime {
+        let now = Local::now().naive_local();
+        let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+        match self {
+            RoughInstant::DayOfMonth { day, time } => NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
+                    .expect("day is not valid"),
+                time.unwrap_or(midnight),
+            ),
+            RoughInstant::DayOfWeek { day, time } => {
+                let today = now.date();
+                let week_start = monday_same_week(&today);
+                let day = week_start + Days::new((*day).into());
+                NaiveDateTime::new(day, time.clone().unwrap_or(midnight))
+            }
+            RoughInstant::Date { date } => date.clone(),
+            RoughInstant::Month { month } => NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(now.year(), *month as u32, 1).expect("month is not valid"),
+                midnight,
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,4 +182,29 @@ pub enum RepeatExact {
     Daily {
         time: Option<NaiveTime>,
     },
+}
+
+impl RepeatExact {
+    pub fn notification_date(&self) -> NaiveDateTime {
+        let now = Local::now().naive_local();
+        let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+        match self {
+            RepeatExact::DayOfMonth { day, time } => NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
+                    .expect("day is not valid"),
+                time.unwrap_or(midnight),
+            ),
+            RepeatExact::DayOfWeek { day, time } => {
+                let today = now.date();
+                let week_start = monday_same_week(&today);
+                let day = week_start + Days::new((*day).into());
+                NaiveDateTime::new(day, time.clone().unwrap_or(midnight))
+            }
+
+            RepeatExact::Daily { time } => {
+                let today = now.date();
+                NaiveDateTime::new(today, time.unwrap_or(midnight))
+            }
+        }
+    }
 }

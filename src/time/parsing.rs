@@ -137,7 +137,7 @@ mod rough_instant {
         nom_ext::alt_many,
         time::{RoughInstant, DAYS_IN_WEEK, MONTHS},
     };
-    use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime};
+    use chrono::{Datelike, Days, Local, NaiveDate, NaiveDateTime, NaiveTime};
     use nom::{
         branch::alt,
         bytes::complete::{tag, tag_no_case},
@@ -190,7 +190,10 @@ mod rough_instant {
 
         let (input, time) = preceded(complete::char(' '), parse_time)(input)?;
 
-        Ok((input, RoughInstant::Today { time }))
+        let today = Local::now().date_naive();
+        let date = NaiveDateTime::new(today, time);
+
+        Ok((input, RoughInstant::Date { date }))
     }
 
     pub fn parse_tomorrow(input: &str) -> IResult<&str, RoughInstant> {
@@ -198,7 +201,16 @@ mod rough_instant {
 
         let (input, time) = opt(preceded(complete::char(' '), parse_time))(input)?;
 
-        Ok((input, RoughInstant::Tomorrow { time }))
+        let today = Local::now().date_naive();
+        let tomorrow = today
+            .checked_add_days(Days::new(1))
+            .expect("Can't represent tomorrow as naive date");
+        let date = NaiveDateTime::new(
+            tomorrow,
+            time.unwrap_or(NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+        );
+
+        Ok((input, RoughInstant::Date { date }))
     }
 
     pub fn parse_month(input: &str) -> IResult<&str, RoughInstant> {

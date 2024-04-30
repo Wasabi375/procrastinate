@@ -13,15 +13,14 @@ fn open_or_create(args: &Args) -> ProcrastinationFile {
     let path_buf = args.file.as_ref();
     let path = procrastination_path(local, path_buf);
 
-    let (data, lock) = if path.exists() {
+    if path.exists() {
         ProcrastinationFile::open(&path)
     } else {
         let data = ProcrastinationFileData::empty();
         let options = FileOptions::new().create_new(true).write(true);
         let lock = FileLock::lock(&path, true, options).expect("Failed to take file lock");
-        (data, lock)
-    };
-    ProcrastinationFile::new(data, lock)
+        ProcrastinationFile::new(data, lock)
+    }
 }
 
 fn procrastination(args: &Args) -> Procrastination {

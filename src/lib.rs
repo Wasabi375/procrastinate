@@ -11,6 +11,7 @@ use std::{
 
 use chrono::{DateTime, Local};
 use file_lock::{FileLock, FileOptions};
+use notify_rust::Notification;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +24,12 @@ impl ProcrastinationFileData {
     pub fn empty() -> Self {
         Self(HashMap::new())
     }
+
+    pub fn notify_all(&self) {
+        for procrastination in self.0.values() {
+            procrastination.notify();
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,6 +38,34 @@ pub struct Procrastination {
     pub message: String,
     pub timing: Repeat,
     pub timestamp: DateTime<Local>,
+}
+
+impl Procrastination {
+    pub fn notify(&self) {
+        if !self.should_notify() {
+            return;
+        }
+        Notification::new()
+            .summary(&self.title)
+            .body(&self.message)
+            .show()
+            .expect("failed to send message");
+    }
+
+    pub fn should_notify(&self) -> bool {
+        let last_timestamp = self.timestamp.naive_local();
+        let next_notification = match &self.timing {
+            Repeat::Once { timing } => match &timing {
+                time::OnceTiming::Instant(i) => i.notification_date(),
+                time::OnceTiming::Delay(d) => last_timestamp + *d,
+            },
+            Repeat::Repeat { timing } => match &timing {
+                time::RepeatTiming::Exact(e) => e.notification_date(),
+                time::RepeatTiming::Delay(d) => last_timestamp + *d,
+            },
+        };
+        next_notification > last_timestamp && Local::now().naive_local() > next_notification
+    }
 }
 
 pub struct ProcrastinationFile {
@@ -51,11 +86,11 @@ pub fn config_dir_path() -> PathBuf {
     }
 }
 
-pub fn procrastination_path(local: bool, path_buf: Option<&PathBuf>) -> PathBuf {
-    let path: PathBuf = if local {
+pub fn procrastination_path(is_local: bool, path: Option<&PathBuf>) -> PathBuf {
+    let path: PathBuf = if is_local {
         let current_dir = env::current_dir().expect("Could not get current working dir");
         current_dir.join(FILE_NAME)
-    } else if let Some(file) = path_buf {
+    } else if let Some(file) = path {
         file.clone()
     } else {
         let config_dir = config_dir_path();
@@ -69,7 +104,7 @@ impl ProcrastinationFile {
         Self { data, lock }
     }
 
-    pub fn open(path: &PathBuf) -> (ProcrastinationFileData, FileLock) {
+    pub fn open(path: &PathBuf) -> Self {
         let options = FileOptions::new().read(true).append(true);
         let mut lock = FileLock::lock(path, true, options).expect("Failed to take file lock");
 
@@ -80,7 +115,7 @@ impl ProcrastinationFile {
 
         let data = ron::from_str(&content).expect("failed to parse procrastination file");
 
-        (data, lock)
+        Self { data, lock }
     }
 
     pub fn data(&self) -> &ProcrastinationFileData {
