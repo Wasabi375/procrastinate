@@ -19,7 +19,9 @@ fn open_or_create(args: &Args) -> ProcrastinationFile {
                 procrastinate::OpenError::IO(io) => {
                     panic!("failed to open file at {path:?}: {io:?}")
                 }
-                procrastinate::OpenError::Parse(_) => todo!("user question, override file?"),
+                procrastinate::OpenError::Parse(err) => {
+                    todo!("user question, override file?\n{err:?}")
+                }
             },
         }
     } else {
@@ -40,8 +42,19 @@ fn procrastination(args: &Args) -> Procrastination {
 
 fn main() {
     use clap::Parser;
-    let args = Args::parse();
+    #[allow(unused_mut)]
+    let mut args = Args::parse();
     args.verify();
+
+    #[cfg(debug_assertions)]
+    {
+        if std::env::var("PROCRASTINATE_DEBUG_LOCAL").is_ok() {
+            args.local = true;
+            if args.verbose {
+                println!("local debug override active");
+            }
+        }
+    }
 
     if args.verbose {
         println!("args: {args:?}");

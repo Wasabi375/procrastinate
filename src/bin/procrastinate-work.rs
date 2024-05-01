@@ -20,7 +20,18 @@ pub struct Args {
 }
 
 fn main() {
-    let args = Args::parse();
+    #[allow(unused_mut)]
+    let mut args = Args::parse();
+
+    #[cfg(debug_assertions)]
+    {
+        if std::env::var("PROCRASTINATE_DEBUG_LOCAL").is_ok() {
+            args.local = true;
+            if args.verbose {
+                println!("local debug override active");
+            }
+        }
+    }
 
     if args.verbose {
         println!("args: {args:?}");
