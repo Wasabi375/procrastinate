@@ -13,7 +13,15 @@ fn open_or_create(args: &Args) -> ProcrastinationFile {
     let path = procrastination_path(local, path_buf);
 
     if path.exists() {
-        ProcrastinationFile::open(&path)
+        match ProcrastinationFile::open(&path) {
+            Ok(file) => file,
+            Err(err) => match err {
+                procrastinate::OpenError::IO(io) => {
+                    panic!("failed to open file at {path:?}: {io:?}")
+                }
+                procrastinate::OpenError::Parse(_) => todo!("user question, override file?"),
+            },
+        }
     } else {
         let data = ProcrastinationFileData::empty();
         let options = FileOptions::new().create_new(true).write(true);

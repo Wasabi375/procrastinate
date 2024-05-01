@@ -924,6 +924,7 @@ dependencies = [
  "notify-rust",
  "ron",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

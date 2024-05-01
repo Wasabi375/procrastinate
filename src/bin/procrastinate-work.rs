@@ -27,7 +27,8 @@ fn main() {
     }
 
     let path = procrastination_path(args.local, args.file.as_ref());
-    let mut procrastination = ProcrastinationFile::open(&path);
+    let mut procrastination =
+        ProcrastinationFile::open(&path).expect("could not open procrastination file");
 
     if let Some(key) = args.key.as_ref() {
         if let Some(procrastination) = procrastination.data_mut().get_mut(key) {

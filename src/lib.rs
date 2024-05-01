@@ -14,6 +14,7 @@ use file_lock::{FileLock, FileOptions};
 use notify_rust::Notification;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::time::Repeat;
 
@@ -152,23 +153,41 @@ pub fn procrastination_path(is_local: bool, path: Option<&PathBuf>) -> PathBuf {
     path
 }
 
+#[derive(Error, Debug)]
+pub enum OpenError {
+    #[error("IO error on file-open {0}")]
+    IO(std::io::Error),
+    #[error("Failed to parse file {0}")]
+    Parse(ron::error::SpannedError),
+}
+
+impl From<std::io::Error> for OpenError {
+    fn from(value: std::io::Error) -> Self {
+        Self::IO(value)
+    }
+}
+
+impl From<ron::error::SpannedError> for OpenError {
+    fn from(value: ron::error::SpannedError) -> Self {
+        Self::Parse(value)
+    }
+}
+
 impl ProcrastinationFile {
     pub fn new(data: ProcrastinationFileData, lock: FileLock) -> Self {
         Self { data, lock }
     }
 
-    pub fn open(path: &PathBuf) -> Self {
+    pub fn open(path: &PathBuf) -> Result<Self, OpenError> {
         let options = FileOptions::new().read(true).append(true);
-        let mut lock = FileLock::lock(path, true, options).expect("Failed to take file lock");
+        let mut lock = FileLock::lock(path, true, options)?;
 
         let mut content = String::new();
-        lock.file
-            .read_to_string(&mut content)
-            .expect("Failed to read file content");
+        lock.file.read_to_string(&mut content)?;
 
-        let data = ron::from_str(&content).expect("failed to parse procrastination file");
+        let data = ron::from_str(&content)?;
 
-        Self { data, lock }
+        Ok(Self { data, lock })
     }
 
     pub fn data(&self) -> &ProcrastinationFileData {
