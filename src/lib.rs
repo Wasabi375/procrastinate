@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::time::Repeat;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct ProcrastinationFileData(HashMap<String, Procrastination>);
 
 impl ProcrastinationFileData {
