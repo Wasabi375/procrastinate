@@ -27,15 +27,17 @@ fn main() {
     }
 
     let path = procrastination_path(args.local, args.file.as_ref());
-    let procrastination = ProcrastinationFile::open(&path);
+    let mut procrastination = ProcrastinationFile::open(&path);
 
     if let Some(key) = args.key.as_ref() {
-        if let Some(procrastination) = procrastination.data().0.get(key) {
+        if let Some(procrastination) = procrastination.data_mut().get_mut(key) {
             procrastination.notify();
         } else {
             panic!("No procrastination with key \"{key}\" found");
         }
     } else {
-        procrastination.data().notify_all();
+        procrastination.data_mut().notify_all();
     }
+    procrastination.data_mut().cleanup();
+    procrastination.save();
 }

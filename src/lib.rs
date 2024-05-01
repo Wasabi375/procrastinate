@@ -18,17 +18,34 @@ use serde::{Deserialize, Serialize};
 use crate::time::Repeat;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProcrastinationFileData(pub HashMap<String, Procrastination>);
+pub struct ProcrastinationFileData(HashMap<String, Procrastination>);
 
 impl ProcrastinationFileData {
     pub fn empty() -> Self {
         Self(HashMap::new())
     }
 
-    pub fn notify_all(&self) {
-        for procrastination in self.0.values() {
+    pub fn notify_all(&mut self) {
+        for procrastination in self.0.values_mut() {
             procrastination.notify();
         }
+    }
+
+    /// delete already send notifications that are Timing::Once
+    pub fn cleanup(&mut self) {
+        self.0.retain(|_k, v| v.dirty != Dirt::Delete);
+    }
+
+    pub fn get(&self, k: &str) -> Option<&Procrastination> {
+        self.0.get(k)
+    }
+
+    pub fn get_mut(&mut self, k: &str) -> Option<&mut Procrastination> {
+        self.0.get_mut(k)
+    }
+
+    pub fn insert(&mut self, k: String, v: Procrastination) -> Option<Procrastination> {
+        self.0.insert(k, v)
     }
 }
 
@@ -38,10 +55,37 @@ pub struct Procrastination {
     pub message: String,
     pub timing: Repeat,
     pub timestamp: DateTime<Local>,
+    #[serde(skip)]
+    dirty: Dirt,
 }
 
 impl Procrastination {
-    pub fn notify(&self) {
+    pub fn new(title: String, message: String, timing: Repeat) -> Self {
+        Procrastination {
+            title,
+            message,
+            timing,
+            timestamp: Local::now(),
+            dirty: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Dirt {
+    Clean,
+    Update,
+    Delete,
+}
+
+impl Default for Dirt {
+    fn default() -> Self {
+        Dirt::Clean
+    }
+}
+
+impl Procrastination {
+    pub fn notify(&mut self) {
         if !self.should_notify() {
             return;
         }
@@ -50,6 +94,14 @@ impl Procrastination {
             .body(&self.message)
             .show()
             .expect("failed to send message");
+
+        self.dirty = match &self.timing {
+            Repeat::Once { timing: _ } => Dirt::Delete,
+            Repeat::Repeat { timing: _ } => {
+                self.timestamp = Local::now();
+                Dirt::Update
+            }
+        }
     }
 
     pub fn should_notify(&self) -> bool {

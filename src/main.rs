@@ -1,4 +1,3 @@
-use chrono::Local;
 use file_lock::{FileLock, FileOptions};
 use procrastinate::{
     procrastination_path, Procrastination, ProcrastinationFile, ProcrastinationFileData,
@@ -24,12 +23,11 @@ fn open_or_create(args: &Args) -> ProcrastinationFile {
 }
 
 fn procrastination(args: &Args) -> Procrastination {
-    Procrastination {
-        title: args.title.clone().unwrap_or(args.key.clone()),
-        message: args.message.clone().unwrap_or(String::new()),
-        timing: args.timing.clone(),
-        timestamp: Local::now(),
-    }
+    Procrastination::new(
+        args.title.clone().unwrap_or(args.key.clone()),
+        args.message.clone().unwrap_or(String::new()),
+        args.timing.clone(),
+    )
 }
 
 fn main() {
@@ -44,7 +42,6 @@ fn main() {
     let mut procrastination_file = open_or_create(&args);
     procrastination_file
         .data_mut()
-        .0
         .insert(args.key.clone(), procrastination(&args));
     procrastination_file.save();
 }
