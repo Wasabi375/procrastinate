@@ -128,13 +128,13 @@ pub struct ProcrastinationFile {
 }
 
 pub const FILE_NAME: &'static str = "procrastination.ron";
-pub const DEFAULT_LOCATION: &'static str = ".config/";
+pub const DEFAULT_LOCATION: &'static str = ".local/share";
 
-pub fn config_dir_path() -> PathBuf {
-    if let Ok(config) = env::var("XDG_CONFIG_HOME") {
-        PathBuf::from_str(&config).expect("XDG_CONFIG_HOME value can't be parsed as PathBuf")
+pub fn data_dir_path() -> PathBuf {
+    if let Ok(config) = env::var("XDG_DATA_HOME") {
+        PathBuf::from_str(&config).expect("XDG_DATA_HOME value can't be parsed as PathBuf")
     } else {
-        let home = env::var("HOME").expect("neither XDG_CONFIG_HOME nor HOME are set");
+        let home = env::var("HOME").expect("neither XDG_DATA_HOME nor HOME are set");
         let home = PathBuf::from_str(&home).expect("HOME value can't be parsed as PathBuf");
         home.join(DEFAULT_LOCATION)
     }
@@ -147,7 +147,7 @@ pub fn procrastination_path(is_local: bool, path: Option<&PathBuf>) -> PathBuf {
     } else if let Some(file) = path {
         file.clone()
     } else {
-        let config_dir = config_dir_path();
+        let config_dir = data_dir_path();
         config_dir.join(FILE_NAME)
     };
     path
@@ -179,6 +179,10 @@ impl ProcrastinationFile {
     }
 
     pub fn open(path: &PathBuf) -> Result<Self, OpenError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
         let options = FileOptions::new().read(true).append(true);
         let mut lock = FileLock::lock(path, true, options)?;
 
