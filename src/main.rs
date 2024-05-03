@@ -1,34 +1,24 @@
 use file_lock::{FileLock, FileOptions};
 use procrastinate::{
-    procrastination_path, Procrastination, ProcrastinationFile, ProcrastinationFileData,
+    procrastination_path, Error, Procrastination, ProcrastinationFile, ProcrastinationFileData,
 };
 
 use crate::args::Args;
 
 pub mod args;
 
-fn open_or_create(args: &Args) -> ProcrastinationFile {
+fn open_or_create(args: &Args) -> Result<ProcrastinationFile, Error> {
     let local = args.local;
     let path_buf = args.file.as_ref();
-    let path = procrastination_path(local, path_buf);
+    let path = procrastination_path(local, path_buf)?;
 
     if path.exists() {
-        match ProcrastinationFile::open(&path) {
-            Ok(file) => file,
-            Err(err) => match err {
-                procrastinate::OpenError::IO(io) => {
-                    panic!("failed to open file at {path:?}: {io:?}")
-                }
-                procrastinate::OpenError::Parse(err) => {
-                    todo!("user question, override file?\n{err:?}")
-                }
-            },
-        }
+        ProcrastinationFile::open(&path)
     } else {
         let data = ProcrastinationFileData::empty();
         let options = FileOptions::new().create_new(true).write(true);
-        let lock = FileLock::lock(&path, true, options).expect("Failed to take file lock");
-        ProcrastinationFile::new(data, lock)
+        let lock = FileLock::lock(&path, true, options)?;
+        Ok(ProcrastinationFile::new(data, lock))
     }
 }
 
@@ -40,11 +30,11 @@ fn procrastination(args: &Args) -> Procrastination {
     )
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     use clap::Parser;
     #[allow(unused_mut)]
     let mut args = Args::parse();
-    args.verify();
+    args.verify()?;
 
     #[cfg(debug_assertions)]
     {
@@ -60,9 +50,11 @@ fn main() {
         println!("args: {args:?}");
     }
 
-    let mut procrastination_file = open_or_create(&args);
+    let mut procrastination_file = open_or_create(&args)?;
     procrastination_file
         .data_mut()
         .insert(args.key.clone(), procrastination(&args));
-    procrastination_file.save();
+    procrastination_file.save()?;
+
+    Ok(())
 }

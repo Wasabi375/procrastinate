@@ -3,6 +3,7 @@ use std::{str::FromStr, time::Duration};
 use chrono::{Datelike, Days, Local, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
 use nom::{branch::alt, IResult};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::nom_ext::consume_all;
 
@@ -136,32 +137,41 @@ pub enum RoughInstant {
     },
 }
 
+#[derive(Debug, Error)]
+pub enum TimeError {
+    #[error("{0} is not a valid day")]
+    InvalidDay(u8),
+    #[error("{0} is not a valid month")]
+    InvalidMonth(u8),
+}
+
 fn monday_same_week(date: &NaiveDate) -> NaiveDate {
     let days_since_mon = date.weekday().days_since(Weekday::Mon);
     *date - Days::new(days_since_mon.into())
 }
 
 impl RoughInstant {
-    pub fn notification_date(&self) -> NaiveDateTime {
+    pub fn notification_date(&self) -> Result<NaiveDateTime, TimeError> {
         let now = Local::now().naive_local();
         let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
         match self {
-            RoughInstant::DayOfMonth { day, time } => NaiveDateTime::new(
+            RoughInstant::DayOfMonth { day, time } => Ok(NaiveDateTime::new(
                 NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
-                    .expect("day is not valid"),
+                    .ok_or(TimeError::InvalidDay(*day))?,
                 time.unwrap_or(midnight),
-            ),
+            )),
             RoughInstant::DayOfWeek { day, time } => {
                 let today = now.date();
                 let week_start = monday_same_week(&today);
                 let day = week_start + Days::new((*day).into());
-                NaiveDateTime::new(day, time.clone().unwrap_or(midnight))
+                Ok(NaiveDateTime::new(day, time.clone().unwrap_or(midnight)))
             }
-            RoughInstant::Date { date } => date.clone(),
-            RoughInstant::Month { month } => NaiveDateTime::new(
-                NaiveDate::from_ymd_opt(now.year(), *month as u32, 1).expect("month is not valid"),
+            RoughInstant::Date { date } => Ok(date.clone()),
+            RoughInstant::Month { month } => Ok(NaiveDateTime::new(
+                NaiveDate::from_ymd_opt(now.year(), *month as u32, 1)
+                    .ok_or(TimeError::InvalidMonth(*month))?,
                 midnight,
-            ),
+            )),
         }
     }
 }
@@ -185,25 +195,25 @@ pub enum RepeatExact {
 }
 
 impl RepeatExact {
-    pub fn notification_date(&self) -> NaiveDateTime {
+    pub fn notification_date(&self) -> Result<NaiveDateTime, TimeError> {
         let now = Local::now().naive_local();
         let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
         match self {
-            RepeatExact::DayOfMonth { day, time } => NaiveDateTime::new(
+            RepeatExact::DayOfMonth { day, time } => Ok(NaiveDateTime::new(
                 NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
-                    .expect("day is not valid"),
+                    .ok_or(TimeError::InvalidDay(*day))?,
                 time.unwrap_or(midnight),
-            ),
+            )),
             RepeatExact::DayOfWeek { day, time } => {
                 let today = now.date();
                 let week_start = monday_same_week(&today);
                 let day = week_start + Days::new((*day).into());
-                NaiveDateTime::new(day, time.clone().unwrap_or(midnight))
+                Ok(NaiveDateTime::new(day, time.clone().unwrap_or(midnight)))
             }
 
             RepeatExact::Daily { time } => {
                 let today = now.date();
-                NaiveDateTime::new(today, time.unwrap_or(midnight))
+                Ok(NaiveDateTime::new(today, time.unwrap_or(midnight)))
             }
         }
     }

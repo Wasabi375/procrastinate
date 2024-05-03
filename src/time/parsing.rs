@@ -202,9 +202,7 @@ mod rough_instant {
         let (input, time) = opt(preceded(complete::char(' '), parse_time))(input)?;
 
         let today = Local::now().date_naive();
-        let tomorrow = today
-            .checked_add_days(Days::new(1))
-            .expect("Can't represent tomorrow as naive date");
+        let tomorrow = today + Days::new(1);
         let date = NaiveDateTime::new(
             tomorrow,
             time.unwrap_or(NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
@@ -344,12 +342,13 @@ mod rough_instant {
         #[test]
         fn test_parse_today() {
             assert!(parse_today("today").is_err());
+            let today = Local::now().date_naive();
             assert_eq!(
                 parse_today("today 07:42"),
                 Ok((
                     "",
-                    RoughInstant::Today {
-                        time: NaiveTime::from_hms_opt(7, 42, 0).unwrap()
+                    RoughInstant::Date {
+                        date: NaiveDateTime::new(today, NaiveTime::from_hms_opt(7, 42, 0).unwrap())
                     }
                 ))
             );
@@ -357,16 +356,29 @@ mod rough_instant {
 
         #[test]
         fn test_parse_tomorrow() {
+            let today = Local::now().date_naive();
+            let tomorrow = today + Days::new(1);
             assert_eq!(
                 parse_tomorrow("tomorrow"),
-                Ok(("", RoughInstant::Tomorrow { time: None }))
+                Ok((
+                    "",
+                    RoughInstant::Date {
+                        date: NaiveDateTime::new(
+                            tomorrow,
+                            NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+                        )
+                    }
+                ))
             );
             assert_eq!(
                 parse_tomorrow("tomorrow 07:42"),
                 Ok((
                     "",
-                    RoughInstant::Tomorrow {
-                        time: NaiveTime::from_hms_opt(7, 42, 0)
+                    RoughInstant::Date {
+                        date: NaiveDateTime::new(
+                            tomorrow,
+                            NaiveTime::from_hms_opt(7, 42, 0).unwrap()
+                        )
                     }
                 ))
             );
@@ -539,7 +551,7 @@ mod repeat_exact {
         use chrono::NaiveTime;
 
         use super::*;
-        use crate::{time::DAYS_IN_WEEK, RepeatExact};
+        use crate::time::DAYS_IN_WEEK;
 
         #[test]
         fn test_parse_daily() {
@@ -682,8 +694,6 @@ mod repeat_exact {
 
 #[cfg(test)]
 mod test {
-    use nom::{combinator::eof, sequence::pair};
-
     use crate::nom_ext::consume_all;
 
     use super::*;

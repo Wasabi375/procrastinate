@@ -15,6 +15,8 @@ use notify_rust::Notification;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use time::TimeError;
+use unwrap_infallible::UnwrapInfallible;
 
 use crate::time::Repeat;
 
@@ -27,10 +29,11 @@ impl ProcrastinationFileData {
         Self(HashMap::new())
     }
 
-    pub fn notify_all(&mut self) {
+    pub fn notify_all(&mut self) -> Result<(), NotificationError> {
         for procrastination in self.0.values_mut() {
-            procrastination.notify();
+            procrastination.notify()?;
         }
+        Ok(())
     }
 
     /// delete already send notifications that are Timing::Once
@@ -86,16 +89,23 @@ impl Default for Dirt {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum NotificationError {
+    #[error("Could not deliver notification")]
+    Notification(#[from] notify_rust::error::Error),
+    #[error("invalid timing information for notification")]
+    InvalidTiming(#[from] TimeError),
+}
+
 impl Procrastination {
-    pub fn notify(&mut self) {
-        if !self.should_notify() {
-            return;
+    pub fn notify(&mut self) -> Result<(), NotificationError> {
+        if !self.should_notify()? {
+            return Ok(());
         }
         Notification::new()
             .summary(&self.title)
             .body(&self.message)
-            .show()
-            .expect("failed to send message");
+            .show()?;
 
         self.dirty = match &self.timing {
             Repeat::Once { timing: _ } => Dirt::Delete,
@@ -103,22 +113,23 @@ impl Procrastination {
                 self.timestamp = Local::now();
                 Dirt::Update
             }
-        }
+        };
+        Ok(())
     }
 
-    pub fn should_notify(&self) -> bool {
+    pub fn should_notify(&self) -> Result<bool, TimeError> {
         let last_timestamp = self.timestamp.naive_local();
         let next_notification = match &self.timing {
             Repeat::Once { timing } => match &timing {
-                time::OnceTiming::Instant(i) => i.notification_date(),
-                time::OnceTiming::Delay(d) => last_timestamp + *d,
+                time::OnceTiming::Instant(instant) => instant.notification_date()?,
+                time::OnceTiming::Delay(delay) => last_timestamp + *delay,
             },
             Repeat::Repeat { timing } => match &timing {
-                time::RepeatTiming::Exact(e) => e.notification_date(),
+                time::RepeatTiming::Exact(e) => e.notification_date()?,
                 time::RepeatTiming::Delay(d) => last_timestamp + *d,
             },
         };
-        next_notification > last_timestamp && Local::now().naive_local() > next_notification
+        Ok(next_notification > last_timestamp && Local::now().naive_local() > next_notification)
     }
 }
 
@@ -132,17 +143,17 @@ pub const DEFAULT_LOCATION: &'static str = ".local/share";
 
 pub fn data_dir_path() -> PathBuf {
     if let Ok(config) = env::var("XDG_DATA_HOME") {
-        PathBuf::from_str(&config).expect("XDG_DATA_HOME value can't be parsed as PathBuf")
+        PathBuf::from_str(&config).unwrap_infallible()
     } else {
         let home = env::var("HOME").expect("neither XDG_DATA_HOME nor HOME are set");
-        let home = PathBuf::from_str(&home).expect("HOME value can't be parsed as PathBuf");
+        let home = PathBuf::from_str(&home).unwrap_infallible();
         home.join(DEFAULT_LOCATION)
     }
 }
 
-pub fn procrastination_path(is_local: bool, path: Option<&PathBuf>) -> PathBuf {
+pub fn procrastination_path(is_local: bool, path: Option<&PathBuf>) -> std::io::Result<PathBuf> {
     let path: PathBuf = if is_local {
-        let current_dir = env::current_dir().expect("Could not get current working dir");
+        let current_dir = env::current_dir()?;
         current_dir.join(FILE_NAME)
     } else if let Some(file) = path {
         file.clone()
@@ -150,27 +161,17 @@ pub fn procrastination_path(is_local: bool, path: Option<&PathBuf>) -> PathBuf {
         let config_dir = data_dir_path();
         config_dir.join(FILE_NAME)
     };
-    path
+    Ok(path)
 }
 
 #[derive(Error, Debug)]
-pub enum OpenError {
+pub enum Error {
     #[error("IO error on file-open {0}")]
-    IO(std::io::Error),
+    IO(#[from] std::io::Error),
     #[error("Failed to parse file {0}")]
-    Parse(ron::error::SpannedError),
-}
-
-impl From<std::io::Error> for OpenError {
-    fn from(value: std::io::Error) -> Self {
-        Self::IO(value)
-    }
-}
-
-impl From<ron::error::SpannedError> for OpenError {
-    fn from(value: ron::error::SpannedError) -> Self {
-        Self::Parse(value)
-    }
+    Parse(#[from] ron::error::SpannedError),
+    #[error("Failed to serialize data")]
+    Serialization(#[from] ron::Error),
 }
 
 impl ProcrastinationFile {
@@ -178,7 +179,7 @@ impl ProcrastinationFile {
         Self { data, lock }
     }
 
-    pub fn open(path: &PathBuf) -> Result<Self, OpenError> {
+    pub fn open(path: &PathBuf) -> Result<Self, Error> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -202,18 +203,12 @@ impl ProcrastinationFile {
         &mut self.data
     }
 
-    pub fn save(&mut self) {
-        self.lock
-            .file
-            .set_len(0)
-            .expect("failed to clear file before refilling it");
+    pub fn save(&mut self) -> Result<(), Error> {
+        self.lock.file.set_len(0)?;
 
-        ron::ser::to_writer_pretty(&mut self.lock.file, &self.data, PrettyConfig::default())
-            .expect("failed to write procrastination data");
+        ron::ser::to_writer_pretty(&mut self.lock.file, &self.data, PrettyConfig::default())?;
 
-        self.lock
-            .file
-            .flush()
-            .expect("failed to write procrastination data");
+        self.lock.file.flush()?;
+        Ok(())
     }
 }

@@ -37,9 +37,10 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn verify(&self) {
+    pub fn verify(&self) -> Result<(), String> {
         if self.local && self.file.is_some() {
-            panic!("'local' and 'file' are mutually exclusive");
+            return Err(format!("'local' and 'file' are mutually exclusive"));
         }
+        Ok(())
     }
 }

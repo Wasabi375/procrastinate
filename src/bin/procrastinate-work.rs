@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{error::Error, path::PathBuf};
 
 use clap::Parser;
 use procrastinate::{procrastination_path, ProcrastinationFile};
@@ -19,7 +19,7 @@ pub struct Args {
     pub verbose: bool,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     #[allow(unused_mut)]
     let mut args = Args::parse();
 
@@ -37,19 +37,21 @@ fn main() {
         println!("args: {args:?}");
     }
 
-    let path = procrastination_path(args.local, args.file.as_ref());
+    let path = procrastination_path(args.local, args.file.as_ref())?;
     let mut procrastination =
         ProcrastinationFile::open(&path).expect("could not open procrastination file");
 
     if let Some(key) = args.key.as_ref() {
         if let Some(procrastination) = procrastination.data_mut().get_mut(key) {
-            procrastination.notify();
+            procrastination.notify()?;
         } else {
             panic!("No procrastination with key \"{key}\" found");
         }
     } else {
-        procrastination.data_mut().notify_all();
+        procrastination.data_mut().notify_all()?;
     }
     procrastination.data_mut().cleanup();
-    procrastination.save();
+    procrastination.save()?;
+
+    Ok(())
 }
