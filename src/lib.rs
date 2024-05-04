@@ -5,11 +5,11 @@ use std::{
     collections::HashMap,
     env,
     io::{Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, NaiveDateTime};
 use file_lock::{FileLock, FileOptions};
 use notify_rust::Notification;
 use ron::ser::PrettyConfig;
@@ -56,6 +56,14 @@ impl ProcrastinationFileData {
     pub fn remove(&mut self, key: &str) -> Option<Procrastination> {
         self.0.remove(key)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Procrastination)> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut Procrastination)> {
+        self.0.iter_mut()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,6 +85,10 @@ impl Procrastination {
             timestamp: Local::now(),
             dirty: Default::default(),
         }
+    }
+
+    pub fn can_notify_in_future(&self) -> bool {
+        self.dirty != Dirt::Delete
     }
 }
 
@@ -102,9 +114,9 @@ pub enum NotificationError {
 }
 
 impl Procrastination {
-    pub fn notify(&mut self) -> Result<(), NotificationError> {
+    pub fn notify(&mut self) -> Result<bool, NotificationError> {
         if !self.should_notify()? {
-            return Ok(());
+            return Ok(false);
         }
         Notification::new()
             .summary(&self.title)
@@ -118,10 +130,16 @@ impl Procrastination {
                 Dirt::Update
             }
         };
-        Ok(())
+        Ok(true)
     }
 
     pub fn should_notify(&self) -> Result<bool, TimeError> {
+        let last_timestamp = self.timestamp.naive_local();
+        let next_notification = self.next_notification()?;
+        Ok(next_notification > last_timestamp && Local::now().naive_local() > next_notification)
+    }
+
+    pub fn next_notification(&self) -> Result<NaiveDateTime, TimeError> {
         let last_timestamp = self.timestamp.naive_local();
         let next_notification = match &self.timing {
             Repeat::Once { timing } => match &timing {
@@ -133,7 +151,7 @@ impl Procrastination {
                 time::RepeatTiming::Delay(d) => last_timestamp + *d,
             },
         };
-        Ok(next_notification > last_timestamp && Local::now().naive_local() > next_notification)
+        Ok(next_notification)
     }
 }
 
@@ -183,7 +201,7 @@ impl ProcrastinationFile {
         Self { data, lock }
     }
 
-    pub fn open(path: &PathBuf) -> Result<Self, Error> {
+    pub fn open(path: &Path) -> Result<Self, Error> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
