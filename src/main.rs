@@ -1,13 +1,11 @@
 use file_lock::{FileLock, FileOptions};
-use procrastinate::{
-    procrastination_path, Error, Procrastination, ProcrastinationFile, ProcrastinationFileData,
-};
+use procrastinate::{procrastination_path, Error, ProcrastinationFile, ProcrastinationFileData};
 
-use crate::args::Args;
+use crate::args::Arguments;
 
 pub mod args;
 
-fn open_or_create(args: &Args) -> Result<ProcrastinationFile, Error> {
+fn open_or_create(args: &Arguments) -> Result<ProcrastinationFile, Error> {
     let local = args.local;
     let path_buf = args.file.as_ref();
     let path = procrastination_path(local, path_buf)?;
@@ -22,18 +20,10 @@ fn open_or_create(args: &Args) -> Result<ProcrastinationFile, Error> {
     }
 }
 
-fn procrastination(args: &Args) -> Procrastination {
-    Procrastination::new(
-        args.title.clone().unwrap_or(args.key.clone()),
-        args.message.clone().unwrap_or(String::new()),
-        args.timing.clone(),
-    )
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use clap::Parser;
     #[allow(unused_mut)]
-    let mut args = Args::parse();
+    let mut args = Arguments::parse();
     args.verify()?;
 
     #[cfg(debug_assertions)]
@@ -53,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut procrastination_file = open_or_create(&args)?;
     procrastination_file
         .data_mut()
-        .insert(args.key.clone(), procrastination(&args));
+        .insert(args.key.clone(), args.procrastination());
     procrastination_file.save()?;
 
     Ok(())

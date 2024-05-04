@@ -42,18 +42,10 @@ pub const MONTHS: [&str; 12] = [
     "december",
 ];
 
-#[derive(clap::Subcommand, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Repeat {
-    /// only procrastinate once
-    Once {
-        /// TODO document
-        timing: OnceTiming,
-    },
-    /// procrastination is only great when doing it again and again
-    Repeat {
-        /// TODO document
-        timing: RepeatTiming,
-    },
+    Once { timing: OnceTiming },
+    Repeat { timing: RepeatTiming },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
