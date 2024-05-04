@@ -52,6 +52,10 @@ impl ProcrastinationFileData {
     pub fn insert(&mut self, k: String, v: Procrastination) -> Option<Procrastination> {
         self.0.insert(k, v)
     }
+
+    pub fn remove(&mut self, key: &str) -> Option<Procrastination> {
+        self.0.remove(key)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

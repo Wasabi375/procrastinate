@@ -1,7 +1,7 @@
 use file_lock::{FileLock, FileOptions};
 use procrastinate::{procrastination_path, Error, ProcrastinationFile, ProcrastinationFileData};
 
-use crate::args::Arguments;
+use crate::args::{Arguments, Cmd};
 
 pub mod args;
 
@@ -41,9 +41,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut procrastination_file = open_or_create(&args)?;
-    procrastination_file
-        .data_mut()
-        .insert(args.key.clone(), args.procrastination());
+
+    match args.cmd {
+        Cmd::Once { timing: _, args: _ } | Cmd::Repeat { timing: _, args: _ } => {
+            procrastination_file
+                .data_mut()
+                .insert(args.key.clone(), args.procrastination())
+        }
+        Cmd::Done => procrastination_file.data_mut().remove(&args.key),
+    };
+
     procrastination_file.save()?;
 
     Ok(())

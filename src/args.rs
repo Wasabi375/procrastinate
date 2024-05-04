@@ -1,3 +1,4 @@
+use core::panic;
 use std::path::PathBuf;
 
 use clap::{Args, Parser};
@@ -63,6 +64,7 @@ impl Arguments {
                     timing: timing.clone(),
                 },
             ),
+            Cmd::Done => panic!("can't create new procrastination from done cmd"),
         };
         Procrastination::new(
             args.title.clone().unwrap_or(self.key.clone()),
@@ -88,4 +90,6 @@ pub enum Cmd {
         #[command(flatten)]
         args: NotificationArgs,
     },
+    /// stop procrastinating
+    Done,
 }
