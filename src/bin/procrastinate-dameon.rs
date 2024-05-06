@@ -5,13 +5,15 @@ use std::{
     time::Duration,
 };
 
-use chrono::Local;
+use chrono::{Local, Timelike};
 use clap::Parser;
 use env_logger::Builder;
 use log::LevelFilter;
 use notify::{RecommendedWatcher, Watcher};
 use notify_rust::Notification;
-use procrastinate::{procrastination_path, ProcrastinationFile};
+use procrastinate::{
+    procrastination_path, save_on_write_file::SaveOnWriteFile, ProcrastinationFile,
+};
 use tokio::{pin, select, sync::watch};
 use tokio_stream::{wrappers::WatchStream, StreamExt};
 
@@ -84,6 +86,25 @@ pub struct Args {
 }
 
 fn init_logger(verbose: bool) {
+    let log_path: PathBuf = std::env::var("XDG_CACHE_HOME")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("Could not find home directory");
+            format!("{home}/.cache")
+        })
+        .into();
+    let now = Local::now().naive_local();
+    let log_path = log_path.join("procrastinate").join(format!(
+        "dameon-{}-{}-{}.log",
+        now.date(),
+        now.time().hour(),
+        now.time().minute()
+    ));
+    println!("log-path: {:?}", log_path);
+    if let Some(parent) = log_path.parent() {
+        std::fs::create_dir_all(parent).expect("Could not create log out dir");
+    }
+    let log_file = SaveOnWriteFile::new(log_path);
+
     let mut builder = Builder::new();
     if verbose {
         builder.filter_level(LevelFilter::Info);
@@ -91,30 +112,11 @@ fn init_logger(verbose: bool) {
         builder.filter_level(LevelFilter::Error);
     }
     builder.parse_default_env();
+    builder.target(env_logger::Target::Pipe(Box::new(log_file)));
     builder.init();
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[allow(unused_mut)]
-    let mut args = Args::parse();
-
-    init_logger(args.verbose);
-
-    #[cfg(debug_assertions)]
-    {
-        if std::env::var("PROCRASTINATE_DEBUG_LOCAL").is_ok() {
-            args.local = true;
-            if args.verbose {
-                log::info!("local debug override active");
-            }
-        }
-    }
-
-    if args.verbose {
-        log::info!("args: {args:?}");
-    }
-
+async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let min_dur = Duration::from_secs(args.min);
     let max_dur = Duration::from_secs(args.max);
 
@@ -158,6 +160,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 sleep = tokio::time::sleep(min_dur);
             }
         };
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[allow(unused_mut)]
+    let mut args = Args::parse();
+
+    init_logger(args.verbose);
+
+    #[cfg(debug_assertions)]
+    {
+        if std::env::var("PROCRASTINATE_DEBUG_LOCAL").is_ok() {
+            args.local = true;
+            if args.verbose {
+                log::info!("local debug override active");
+            }
+        }
+    }
+
+    if args.verbose {
+        log::info!("args: {args:?}");
+    }
+
+    match work(&args).await {
+        Ok(o) => Ok(o),
+        Err(e) => {
+            log::error!("Dameon failed with: {e}");
+            Err(e)
+        }
     }
 }
 
