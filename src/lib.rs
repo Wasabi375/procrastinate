@@ -118,6 +118,7 @@ impl Procrastination {
         if !self.should_notify()? {
             return Ok(false);
         }
+        log::info!("Notification:\n{}\n\n{}", self.title, self.message);
         Notification::new()
             .summary(&self.title)
             .body(&self.message)
