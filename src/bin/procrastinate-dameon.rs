@@ -1,4 +1,6 @@
+use core::panic;
 use std::{
+    error::Error,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -6,6 +8,7 @@ use std::{
 use chrono::Local;
 use clap::Parser;
 use notify::{RecommendedWatcher, Watcher};
+use notify_rust::Notification;
 use procrastinate::{procrastination_path, ProcrastinationFile};
 use tokio::{pin, select, sync::watch};
 use tokio_stream::{wrappers::WatchStream, StreamExt};
@@ -92,6 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sleep = tokio::time::sleep(timeout);
 
     let (_file_watcher, mut file_watch) = watch(&path)?;
+    let mut last_n_iters_failed = 0;
 
     loop {
         {
@@ -101,14 +105,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 _ = &mut sleep => {}
                 next = file_watch.next() => {
                     if next.is_none() {
-                        return Err(format!("File watch stream closed").into());
+                        let err: Box<dyn Error> = "File watch stream closed".into();
+                        display_error_notification(err.as_ref());
+                        return Err(err);
                     }
                 }
             }
         }
-        let timeout = check_for_notifications(&path, min_dur, max_dur)?;
-        sleep = tokio::time::sleep(timeout);
+        match check_for_notifications(&path, min_dur, max_dur) {
+            Ok(timeout) => {
+                sleep = tokio::time::sleep(timeout);
+                last_n_iters_failed = 0;
+            }
+            Err(err) => {
+                display_error_notification(err.as_ref());
+                if last_n_iters_failed == 2 {
+                    let err: Box<dyn Error> =
+                        "Notification check failed to often. Stopping dameon".into();
+                    display_error_notification(err.as_ref());
+                    return Err(err);
+                }
+                last_n_iters_failed += 1;
+                sleep = tokio::time::sleep(min_dur);
+            }
+        };
     }
+}
+
+fn display_error_notification(err: &dyn Error) {
+    Notification::new()
+        .summary("Procrastinate-Dameon error")
+        .body(&format!("{err}"))
+        .show()
+        .expect("failed to notify about previous error");
 }
 
 fn watch(path: &Path) -> notify::Result<(RecommendedWatcher, WatchStream<()>)> {
