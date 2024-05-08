@@ -99,7 +99,9 @@ fn init_logger(verbose: bool) {
         now.time().hour(),
         now.time().minute()
     ));
-    println!("log-path: {:?}", log_path);
+    if verbose {
+        println!("log-path: {:?}", log_path);
+    }
     if let Some(parent) = log_path.parent() {
         std::fs::create_dir_all(parent).expect("Could not create log out dir");
     }
@@ -122,7 +124,7 @@ async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let path = procrastination_path(args.local, args.file.as_ref())?;
 
-    let timeout = check_for_notifications(&path, min_dur, max_dur)?;
+    let timeout = check_for_notifications(&path, min_dur, max_dur).unwrap_or(min_dur);
     let mut sleep = tokio::time::sleep(timeout);
 
     let (_file_watcher, mut file_watch) = watch(&path)?;
@@ -204,8 +206,24 @@ fn display_error_notification(err: &dyn Error) {
 fn watch(path: &Path) -> notify::Result<(RecommendedWatcher, WatchStream<()>)> {
     let (tx, rx) = watch::channel(());
 
-    let mut watcher =
-        RecommendedWatcher::new(move |_event| tx.send(()).unwrap(), Default::default())?;
+    let mut watcher = RecommendedWatcher::new(
+        move |event: Result<notify::Event, notify::Error>| match event {
+            Ok(event) => match event.kind {
+                notify::EventKind::Any
+                | notify::EventKind::Create(_)
+                | notify::EventKind::Modify(_)
+                | notify::EventKind::Other => tx.send(()).unwrap(),
+                _ => {
+                    // ignore non modify and delete events. Those don't change when we need to check next
+                }
+            },
+            Err(err) => {
+                log::error!("File watcher error: {err}");
+                panic!("File watcher error: {err}")
+            }
+        },
+        Default::default(),
+    )?;
     watcher.watch(path, notify::RecursiveMode::Recursive)?;
 
     Ok((watcher, WatchStream::from_changes(rx)))
