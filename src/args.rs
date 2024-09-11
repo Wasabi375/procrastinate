@@ -16,9 +16,6 @@ use procrastinate::{
 /// Either `procrastinate-daemon` or `procrastinate-work` can notify you
 /// when it's time to stop procrastinating on the given taks.
 pub struct Arguments {
-    /// A key to identify this procrastination
-    pub key: String,
-
     /// How long to procrastinate for
     #[command(subcommand)]
     pub cmd: Cmd,
@@ -56,23 +53,27 @@ impl Arguments {
     }
 
     pub fn procrastination(&self) -> Procrastination {
-        let (args, timing) = match &self.cmd {
-            Cmd::Once { timing, args } => (
+        let (key, args, timing) = match &self.cmd {
+            Cmd::Once { key, timing, args } => (
+                key,
                 args,
                 Repeat::Once {
                     timing: timing.clone(),
                 },
             ),
-            Cmd::Repeat { timing, args } => (
+            Cmd::Repeat { key, timing, args } => (
+                key,
                 args,
                 Repeat::Repeat {
                     timing: timing.clone(),
                 },
             ),
-            Cmd::Done => panic!("can't create new procrastination from done cmd"),
+            Cmd::Done { .. } | Cmd::List => {
+                panic!("can't create new procrastination from done or list cmd")
+            }
         };
         Procrastination::new(
-            args.title.clone().unwrap_or(self.key.clone()),
+            args.title.clone().unwrap_or(key.clone()),
             args.message.clone().unwrap_or(String::new()),
             timing,
         )
@@ -83,6 +84,9 @@ impl Arguments {
 pub enum Cmd {
     /// Procrastinating on any taks is great
     Once {
+        /// A key to identify this procrastination
+        key: String,
+
         #[arg(help = ONCE_TIMING_ARG_DOC)]
         timing: OnceTiming,
         #[command(flatten)]
@@ -90,11 +94,19 @@ pub enum Cmd {
     },
     /// procrastination is only great when doing it again and again
     Repeat {
+        /// A key to identify this procrastination
+        key: String,
+
         #[arg(help = REPEAT_TIMING_ARG_DOC)]
         timing: RepeatTiming,
         #[command(flatten)]
         args: NotificationArgs,
     },
     /// stop procrastinating on a given taks
-    Done,
+    Done {
+        /// A key to identify this procrastination
+        key: String,
+    },
+    /// List all tasks you are procrastinating
+    List,
 }

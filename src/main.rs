@@ -43,12 +43,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut procrastination_file = open_or_create(&args)?;
 
     match args.cmd {
-        Cmd::Once { timing: _, args: _ } | Cmd::Repeat { timing: _, args: _ } => {
-            procrastination_file
-                .data_mut()
-                .insert(args.key.clone(), args.procrastination())
+        Cmd::Once {
+            ref key,
+            timing: _,
+            args: _,
         }
-        Cmd::Done => procrastination_file.data_mut().remove(&args.key),
+        | Cmd::Repeat {
+            ref key,
+            timing: _,
+            args: _,
+        } => procrastination_file
+            .data_mut()
+            .insert(key.clone(), args.procrastination()),
+        Cmd::Done { ref key } => procrastination_file.data_mut().remove(key),
+        Cmd::List => {
+            for proc in procrastination_file.data().iter() {
+                // TODO print this for user instead of debug
+                println!("{:#?}", proc.1);
+            }
+            None
+        }
     };
 
     procrastination_file.save()?;
