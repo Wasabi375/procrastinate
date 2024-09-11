@@ -3,12 +3,18 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser};
 use procrastinate::{
+    arg_help::{ONCE_TIMING_ARG_DOC, REPEAT_TIMING_ARG_DOC},
+    file_arg_doc, local_arg_doc,
     time::{OnceTiming, Repeat, RepeatTiming},
     Procrastination,
 };
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about)]
+/// Create a new procrastination.
+///
+/// Either `procrastinate-daemon` or `procrastinate-work` can notify you
+/// when it's time to stop procrastinating on the given taks.
 pub struct Arguments {
     /// A key to identify this procrastination
     pub key: String,
@@ -17,12 +23,11 @@ pub struct Arguments {
     #[command(subcommand)]
     pub cmd: Cmd,
 
-    /// procrastinate in current working directory
-    #[arg(short, long)]
+    #[arg(short, long, help = local_arg_doc!())]
     pub local: bool,
 
     /// procrastinate at file
-    #[arg(short, long)]
+    #[arg(short, long, help = file_arg_doc!())]
     pub file: Option<PathBuf>,
 
     #[arg(short, long)]
@@ -76,20 +81,20 @@ impl Arguments {
 
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Cmd {
-    /// only procrastinate once
+    /// Procrastinating on any taks is great
     Once {
-        /// TODO document
+        #[arg(help = ONCE_TIMING_ARG_DOC)]
         timing: OnceTiming,
         #[command(flatten)]
         args: NotificationArgs,
     },
     /// procrastination is only great when doing it again and again
     Repeat {
-        /// TODO document
+        #[arg(help = REPEAT_TIMING_ARG_DOC)]
         timing: RepeatTiming,
         #[command(flatten)]
         args: NotificationArgs,
     },
-    /// stop procrastinating
+    /// stop procrastinating on a given taks
     Done,
 }

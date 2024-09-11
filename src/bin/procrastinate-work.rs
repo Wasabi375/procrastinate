@@ -1,18 +1,28 @@
 use std::{error::Error, path::PathBuf};
 
 use clap::Parser;
-use procrastinate::{procrastination_path, ProcrastinationFile};
+use procrastinate::{
+    check_key_arg_doc, file_arg_doc, local_arg_doc, procrastination_path, ProcrastinationFile,
+};
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about)]
+/// Shows notifications for all finished procrastinations.
+///
+/// This will not wait for any procrastinations to be finished.
+/// If you want to continously notify when procrastinations finish
+/// you can use `procrastinate-daemon` instead.
 pub struct Args {
+    #[arg(help =  check_key_arg_doc!())]
     pub key: Option<String>,
 
-    #[arg(short, long)]
+    #[arg(short, long, help = local_arg_doc!())]
     pub local: bool,
 
-    /// procrastinate at file
-    #[arg(short, long)]
+    /// Check for procrastinations in the given file.
+    ///
+    /// This is ignored if `local` is set.
+    #[arg(short, long, help = file_arg_doc!())]
     pub file: Option<PathBuf>,
 
     #[arg(short, long)]

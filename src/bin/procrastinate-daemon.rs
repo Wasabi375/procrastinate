@@ -12,7 +12,8 @@ use log::LevelFilter;
 use notify::{RecommendedWatcher, Watcher};
 use notify_rust::Notification;
 use procrastinate::{
-    procrastination_path, save_on_write_file::SaveOnWriteFile, ProcrastinationFile,
+    check_key_arg_doc, file_arg_doc, local_arg_doc, procrastination_path,
+    save_on_write_file::SaveOnWriteFile, ProcrastinationFile,
 };
 use tokio::{pin, select, sync::watch};
 use tokio_stream::{wrappers::WatchStream, StreamExt};
@@ -62,11 +63,15 @@ fn check_for_notifications(
 }
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about)]
+/// Continously checks notifications for all finished procrastinations.
+///
+/// To only check for notifications once use `procrastinate-work` insetead.
 pub struct Args {
+    #[arg(help = check_key_arg_doc!())]
     pub key: Option<String>,
 
-    #[arg(short, long)]
+    #[arg(short, long, help = local_arg_doc!())]
     pub local: bool,
 
     /// minimum time to wait before checking pending notifications in seconds
@@ -78,7 +83,7 @@ pub struct Args {
     pub max: u64,
 
     /// procrastinate at file
-    #[arg(short, long)]
+    #[arg(short, long, help = file_arg_doc!())]
     pub file: Option<PathBuf>,
 
     #[arg(short, long)]
