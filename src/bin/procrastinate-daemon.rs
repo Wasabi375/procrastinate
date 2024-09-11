@@ -94,7 +94,7 @@ fn init_logger(verbose: bool) {
         .into();
     let now = Local::now().naive_local();
     let log_path = log_path.join("procrastinate").join(format!(
-        "dameon-{}-{}-{}.log",
+        "daemon-{}-{}-{}.log",
         now.date(),
         now.time().hour(),
         now.time().minute()
@@ -154,7 +154,7 @@ async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
                 display_error_notification(err.as_ref());
                 if last_n_iters_failed == 2 {
                     let err: Box<dyn Error> =
-                        "Notification check failed to often. Stopping dameon".into();
+                        "Notification check failed to often. Stopping daemon".into();
                     display_error_notification(err.as_ref());
                     return Err(err);
                 }
@@ -189,7 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match work(&args).await {
         Ok(o) => Ok(o),
         Err(e) => {
-            log::error!("Dameon failed with: {e}");
+            log::error!("Daemon failed with: {e}");
             Err(e)
         }
     }
@@ -197,7 +197,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn display_error_notification(err: &dyn Error) {
     Notification::new()
-        .summary("Procrastinate-Dameon error")
+        .summary("Procrastinate-Daemon error")
         .body(&format!("{err}"))
         .show()
         .expect("failed to notify about previous error");

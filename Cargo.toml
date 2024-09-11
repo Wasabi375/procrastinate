@@ -30,4 +30,4 @@ name = "procrastinate"
 name = "procrastinate-work"
 
 [[bin]]
-name = "procrastinate-dameon"
+name = "procrastinate-daemon"
