@@ -47,7 +47,7 @@ pub struct NotificationArgs {
 impl Arguments {
     pub fn verify(&self) -> Result<(), String> {
         if self.local && self.file.is_some() {
-            return Err(format!("'local' and 'file' are mutually exclusive"));
+            return Err("'local' and 'file' are mutually exclusive".to_string());
         }
         Ok(())
     }

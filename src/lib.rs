@@ -1,6 +1,5 @@
 pub mod arg_help;
 pub mod nom_ext;
-pub mod save_on_write_file;
 pub mod time;
 
 use std::{

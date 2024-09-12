@@ -5,17 +5,20 @@ use std::{
     time::Duration,
 };
 
-use chrono::{Local, Timelike};
+use chrono::Local;
 use clap::Parser;
 use env_logger::Builder;
 use log::LevelFilter;
 use notify::{RecommendedWatcher, Watcher};
 use notify_rust::Notification;
 use procrastinate::{
-    check_key_arg_doc, file_arg_doc, local_arg_doc, procrastination_path,
-    save_on_write_file::SaveOnWriteFile, ProcrastinationFile,
+    check_key_arg_doc, file_arg_doc, local_arg_doc, procrastination_path, ProcrastinationFile,
 };
-use tokio::{pin, select, sync::watch};
+use tokio::{
+    pin, select,
+    signal::unix::{signal, SignalKind},
+    sync::watch,
+};
 use tokio_stream::{wrappers::WatchStream, StreamExt};
 
 fn check_for_notifications(
@@ -91,27 +94,6 @@ pub struct Args {
 }
 
 fn init_logger(verbose: bool) {
-    let log_path: PathBuf = std::env::var("XDG_CACHE_HOME")
-        .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").expect("Could not find home directory");
-            format!("{home}/.cache")
-        })
-        .into();
-    let now = Local::now().naive_local();
-    let log_path = log_path.join("procrastinate").join(format!(
-        "daemon-{}-{}-{}.log",
-        now.date(),
-        now.time().hour(),
-        now.time().minute()
-    ));
-    if verbose {
-        println!("log-path: {:?}", log_path);
-    }
-    if let Some(parent) = log_path.parent() {
-        std::fs::create_dir_all(parent).expect("Could not create log out dir");
-    }
-    let log_file = SaveOnWriteFile::new(log_path);
-
     let mut builder = Builder::new();
     if verbose {
         builder.filter_level(LevelFilter::Info);
@@ -119,8 +101,21 @@ fn init_logger(verbose: bool) {
         builder.filter_level(LevelFilter::Error);
     }
     builder.parse_default_env();
-    builder.target(env_logger::Target::Pipe(Box::new(log_file)));
     builder.init();
+}
+
+async fn shutdown_signal() -> SignalKind {
+    let mut term =
+        signal(SignalKind::terminate()).expect("failed to create terminate signal handler");
+    let mut quit = signal(SignalKind::quit()).expect("failed to create quit signal handler");
+    let mut int =
+        signal(SignalKind::interrupt()).expect("failed to create interrupt signal handler");
+
+    select! {
+        _ = term.recv() => { SignalKind::terminate() }
+        _ = quit.recv() => { SignalKind::quit() }
+        _ = int.recv() => { SignalKind::interrupt() }
+    }
 }
 
 async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
@@ -135,6 +130,8 @@ async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
     let (_file_watcher, mut file_watch) = watch(&path)?;
     let mut last_n_iters_failed = 0;
 
+    let mut shutdown_signal = Box::pin(shutdown_signal());
+
     loop {
         {
             // Wait for either timeout or file change
@@ -147,6 +144,10 @@ async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
                         display_error_notification(err.as_ref());
                         return Err(err);
                     }
+                }
+                signal = &mut shutdown_signal => {
+                    log::info!("Shutdown signal {:?} recieved", signal);
+                    return Ok(());
                 }
             }
         }
