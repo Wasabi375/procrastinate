@@ -38,8 +38,16 @@ impl ProcrastinationFileData {
     }
 
     /// delete already send notifications that are Timing::Once
-    pub fn cleanup(&mut self) {
-        self.0.retain(|_k, v| v.dirty != Dirt::Delete);
+    pub fn cleanup(&mut self) -> bool {
+        let mut changed = false;
+        self.0.retain(|_k, v| {
+            let retain = v.dirty != Dirt::Delete;
+            if !retain {
+                changed = true;
+            }
+            retain
+        });
+        changed
     }
 
     pub fn get(&self, k: &str) -> Option<&Procrastination> {

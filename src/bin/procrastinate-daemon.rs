@@ -33,8 +33,10 @@ fn check_for_notifications(
     let mut until_any_next = Duration::MAX;
     let mut err = None;
 
+    let mut changed = false;
+
     for (_key, procrastination) in proc_file.data_mut().iter_mut() {
-        procrastination.notify()?;
+        changed |= procrastination.notify()?;
 
         if !procrastination.can_notify_in_future() {
             continue;
@@ -53,9 +55,11 @@ fn check_for_notifications(
             }
         }
     }
-    proc_file.data_mut().cleanup();
+    changed |= proc_file.data_mut().cleanup();
 
-    proc_file.save()?;
+    if changed {
+        proc_file.save()?;
+    }
 
     if let Some(err) = err {
         return Err(err.into());
@@ -137,8 +141,11 @@ async fn work(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
             // Wait for either timeout or file change
             pin!(sleep);
             select! {
-                _ = &mut sleep => {}
+                _ = &mut sleep => {
+                    log::info!("wake from timeout");
+                }
                 next = file_watch.next() => {
+                    log::info!("wake from file watch");
                     if next.is_none() {
                         let err: Box<dyn Error> = "File watch stream closed".into();
                         display_error_notification(err.as_ref());
@@ -214,15 +221,11 @@ fn watch(path: &Path) -> notify::Result<(RecommendedWatcher, WatchStream<()>)> {
 
     let mut watcher = RecommendedWatcher::new(
         move |event: Result<notify::Event, notify::Error>| match event {
-            Ok(event) => match event.kind {
-                notify::EventKind::Any
-                | notify::EventKind::Create(_)
-                | notify::EventKind::Modify(_)
-                | notify::EventKind::Other => tx.send(()).unwrap(),
-                _ => {
-                    // ignore non modify and delete events. Those don't change when we need to check next
+            Ok(event) => {
+                if let notify::EventKind::Create(_) | notify::EventKind::Modify(_) = &event.kind {
+                    tx.send(()).unwrap()
                 }
-            },
+            }
             Err(err) => {
                 log::error!("File watcher error: {err}");
                 panic!("File watcher error: {err}")
