@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Cmd::List => {
             for proc in procrastination_file.data().iter() {
                 // TODO print this for user instead of debug
-                println!("{:#?}", proc.1);
+                println!("{}: {:#?}", proc.0, proc.1);
             }
             None
         }
