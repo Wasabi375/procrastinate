@@ -41,16 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut procrastination_file = open_or_create(&args)?;
 
     match args.cmd {
-        Cmd::Once {
-            ref key,
-            timing: _,
-            args: _,
-        }
-        | Cmd::Repeat {
-            ref key,
-            timing: _,
-            args: _,
-        } => procrastination_file
+        Cmd::Once { ref key, .. } | Cmd::Repeat { ref key, .. } => procrastination_file
             .data_mut()
             .insert(key.clone(), args.procrastination()),
         Cmd::Done { ref key } => procrastination_file.data_mut().remove(key),

@@ -83,16 +83,19 @@ pub struct Procrastination {
     pub timestamp: DateTime<Local>,
     #[serde(skip)]
     dirty: Dirt,
+    #[serde(default)]
+    pub sticky: bool,
 }
 
 impl Procrastination {
-    pub fn new(title: String, message: String, timing: Repeat) -> Self {
+    pub fn new(title: String, message: String, timing: Repeat, sticky: bool) -> Self {
         Procrastination {
             title,
             message,
             timing,
             timestamp: Local::now(),
             dirty: Default::default(),
+            sticky,
         }
     }
 
@@ -101,17 +104,12 @@ impl Procrastination {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default)]
 enum Dirt {
+    #[default]
     Clean,
     Update,
     Delete,
-}
-
-impl Default for Dirt {
-    fn default() -> Self {
-        Dirt::Clean
-    }
 }
 
 #[derive(Debug, Error)]
@@ -128,10 +126,15 @@ impl Procrastination {
             return Ok(false);
         }
         log::info!("Notification:\n{}\n\n{}", self.title, self.message);
-        Notification::new()
-            .summary(&self.title)
-            .body(&self.message)
-            .show()?;
+        let mut notification = Notification::new();
+        notification.summary(&self.title).body(&self.message);
+
+        if self.sticky {
+            notification.hint(notify_rust::Hint::Resident(true));
+            notification.timeout(0);
+        }
+
+        notification.show()?;
 
         self.dirty = match &self.timing {
             Repeat::Once { timing: _ } => Dirt::Delete,
@@ -242,5 +245,41 @@ impl ProcrastinationFile {
 
         self.lock.file.flush()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::time::Duration;
+
+    use crate::{
+        time::{Repeat, RepeatTiming},
+        Procrastination,
+    };
+
+    #[test]
+    fn can_deser_0_3_2_procrastination() {
+        let input = r#"(
+            title: "NixOs update required",
+            message: "It has been a month since the last update",
+            timing: Repeat(
+                timing: Delay((
+                    secs: 2592000,
+                    nanos: 0,
+                )),
+            ),
+            timestamp: "2024-09-12T04:41:38.864837768+02:00",
+        )"#;
+        let proc: Procrastination =
+            ron::from_str(input).expect("Failed to parse proc data from version 0.3.2");
+
+        assert_eq!(proc.title, "NixOs update required");
+        assert_eq!(proc.message, "It has been a month since the last update");
+        assert_eq!(
+            proc.timing,
+            Repeat::Repeat {
+                timing: RepeatTiming::Delay(Duration::from_secs(2592000))
+            }
+        )
     }
 }

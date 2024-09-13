@@ -42,13 +42,13 @@ pub const MONTHS: [&str; 12] = [
     "december",
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Repeat {
     Once { timing: OnceTiming },
     Repeat { timing: RepeatTiming },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OnceTiming {
     Instant(RoughInstant),
     Delay(Duration),
@@ -79,7 +79,7 @@ impl FromStr for OnceTiming {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RepeatTiming {
     Exact(RepeatExact),
     Delay(Duration),

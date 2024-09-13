@@ -53,20 +53,32 @@ impl Arguments {
     }
 
     pub fn procrastination(&self) -> Procrastination {
-        let (key, args, timing) = match &self.cmd {
-            Cmd::Once { key, timing, args } => (
+        let (key, args, timing, sticky) = match &self.cmd {
+            Cmd::Once {
+                key,
+                timing,
+                args,
+                sticky,
+            } => (
                 key,
                 args,
                 Repeat::Once {
                     timing: timing.clone(),
                 },
+                sticky,
             ),
-            Cmd::Repeat { key, timing, args } => (
+            Cmd::Repeat {
+                key,
+                timing,
+                args,
+                sticky,
+            } => (
                 key,
                 args,
                 Repeat::Repeat {
                     timing: timing.clone(),
                 },
+                sticky,
             ),
             Cmd::Done { .. } | Cmd::List => {
                 panic!("can't create new procrastination from done or list cmd")
@@ -76,6 +88,7 @@ impl Arguments {
             args.title.clone().unwrap_or(key.clone()),
             args.message.clone().unwrap_or(String::new()),
             timing,
+            *sticky,
         )
     }
 }
@@ -91,6 +104,9 @@ pub enum Cmd {
         timing: OnceTiming,
         #[command(flatten)]
         args: NotificationArgs,
+        /// If set any any notification must be explicitly dismissed
+        #[arg(short, long)]
+        sticky: bool,
     },
     /// procrastination is only great when doing it again and again
     Repeat {
@@ -101,6 +117,9 @@ pub enum Cmd {
         timing: RepeatTiming,
         #[command(flatten)]
         args: NotificationArgs,
+        /// If set any any notification must be explicitly dismissed
+        #[arg(short, long)]
+        sticky: bool,
     },
     /// stop procrastinating on a given taks
     Done {
