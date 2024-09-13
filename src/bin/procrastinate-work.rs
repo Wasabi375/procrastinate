@@ -37,9 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         if std::env::var("PROCRASTINATE_DEBUG_LOCAL").is_ok() {
             args.local = true;
-            if args.verbose {
-                println!("local debug override active");
-            }
+            eprintln!("local debug override active");
         }
     }
 
