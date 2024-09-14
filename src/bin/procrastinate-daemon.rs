@@ -36,14 +36,14 @@ fn check_for_notifications(
     let mut changed = false;
 
     for (_key, procrastination) in proc_file.data_mut().iter_mut() {
-        changed |= procrastination.notify()?;
+        changed |= procrastination.notify()?.changed();
 
         if !procrastination.can_notify_in_future() {
             continue;
         }
 
         match procrastination.next_notification() {
-            Ok(next_notification_at) => {
+            Ok((_, next_notification_at)) => {
                 let until_next = next_notification_at - now;
                 let until_next = until_next.to_std().unwrap_or(Duration::MAX);
 

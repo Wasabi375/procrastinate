@@ -16,7 +16,7 @@ use notify_rust::Notification;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use time::TimeError;
+use time::{OnceTiming, TimeError};
 use unwrap_infallible::UnwrapInfallible;
 
 use crate::time::Repeat;
@@ -85,6 +85,8 @@ pub struct Procrastination {
     dirty: Dirt,
     #[serde(default)]
     pub sticky: bool,
+    #[serde(default)]
+    pub sleep: Option<Sleep>,
 }
 
 impl Procrastination {
@@ -96,12 +98,18 @@ impl Procrastination {
             timestamp: Local::now(),
             dirty: Default::default(),
             sticky,
+            sleep: None,
         }
     }
 
     pub fn can_notify_in_future(&self) -> bool {
         self.dirty != Dirt::Delete
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Sleep {
+    pub timing: OnceTiming,
 }
 
 #[derive(Debug, PartialEq, Eq, Default)]
@@ -120,11 +128,29 @@ pub enum NotificationError {
     InvalidTiming(#[from] TimeError),
 }
 
-impl Procrastination {
-    pub fn notify(&mut self) -> Result<bool, NotificationError> {
-        if !self.should_notify()? {
-            return Ok(false);
+#[derive(Debug, PartialEq, Eq)]
+pub enum NotificationType {
+    Normal,
+    Sleep,
+    None,
+}
+
+impl NotificationType {
+    pub fn changed(&self) -> bool {
+        match self {
+            Self::Normal | Self::Sleep => true,
+            Self::None => false,
         }
+    }
+}
+
+impl Procrastination {
+    pub fn notify(&mut self) -> Result<NotificationType, NotificationError> {
+        let not_type = self.should_notify()?;
+        if not_type == NotificationType::None {
+            return Ok(not_type);
+        }
+
         log::info!("Notification:\n{}\n\n{}", self.title, self.message);
         let mut notification = Notification::new();
         notification.summary(&self.title).body(&self.message);
@@ -136,6 +162,8 @@ impl Procrastination {
 
         notification.show()?;
 
+        self.sleep = None;
+
         self.dirty = match &self.timing {
             Repeat::Once { timing: _ } => Dirt::Delete,
             Repeat::Repeat { timing: _ } => {
@@ -143,29 +171,57 @@ impl Procrastination {
                 Dirt::Update
             }
         };
-        Ok(true)
+        Ok(not_type)
     }
 
-    pub fn should_notify(&self) -> Result<bool, TimeError> {
+    pub fn should_notify(&self) -> Result<NotificationType, TimeError> {
         let last_timestamp = self.timestamp.naive_local();
-        let next_notification = self.next_notification()?;
-        Ok(next_notification > last_timestamp && Local::now().naive_local() > next_notification)
+        let (typ, next_notification) = self.next_notification()?;
+        if next_notification > last_timestamp && Local::now().naive_local() > next_notification {
+            Ok(typ)
+        } else {
+            Ok(NotificationType::None)
+        }
     }
 
-    pub fn next_notification(&self) -> Result<NaiveDateTime, TimeError> {
+    pub fn next_notification(&self) -> Result<(NotificationType, NaiveDateTime), TimeError> {
         let last_timestamp = self.timestamp.naive_local();
         let next_notification = match &self.timing {
-            Repeat::Once { timing } => match &timing {
-                time::OnceTiming::Instant(instant) => instant.notification_date()?,
-                time::OnceTiming::Delay(delay) => last_timestamp + *delay,
-            },
-            Repeat::Repeat { timing } => match &timing {
-                time::RepeatTiming::Exact(e) => e.notification_date()?,
-                time::RepeatTiming::Delay(d) => last_timestamp + *d,
-            },
+            Repeat::Once { timing } => next_once_timing(timing, last_timestamp)?,
+            Repeat::Repeat { timing } => next_repeat_timing(timing, last_timestamp)?,
         };
-        Ok(next_notification)
+
+        if let Some(sleep) = self.sleep.as_ref() {
+            let next_sleep_notification = next_once_timing(&sleep.timing, last_timestamp)?;
+            if next_sleep_notification < next_notification {
+                Ok((NotificationType::Sleep, next_sleep_notification))
+            } else {
+                Ok((NotificationType::Normal, next_notification))
+            }
+        } else {
+            Ok((NotificationType::Normal, next_notification))
+        }
     }
+}
+
+fn next_repeat_timing(
+    timing: &time::RepeatTiming,
+    last_timestamp: NaiveDateTime,
+) -> Result<NaiveDateTime, TimeError> {
+    Ok(match timing {
+        time::RepeatTiming::Exact(e) => e.notification_date()?,
+        time::RepeatTiming::Delay(delay) => last_timestamp + *delay,
+    })
+}
+
+fn next_once_timing(
+    timing: &OnceTiming,
+    last_timestamp: NaiveDateTime,
+) -> Result<NaiveDateTime, TimeError> {
+    Ok(match timing {
+        time::OnceTiming::Instant(instant) => instant.notification_date()?,
+        time::OnceTiming::Delay(delay) => last_timestamp + *delay,
+    })
 }
 
 pub struct ProcrastinationFile {
