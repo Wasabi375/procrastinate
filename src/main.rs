@@ -1,5 +1,7 @@
 use file_lock::{FileLock, FileOptions};
-use procrastinate::{procrastination_path, Error, ProcrastinationFile, ProcrastinationFileData};
+use procrastinate::{
+    procrastination_path, Error, ProcrastinationFile, ProcrastinationFileData, Sleep,
+};
 
 use crate::args::{Arguments, Cmd};
 
@@ -41,16 +43,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut procrastination_file = open_or_create(&args)?;
 
     match args.cmd {
-        Cmd::Once { ref key, .. } | Cmd::Repeat { ref key, .. } => procrastination_file
-            .data_mut()
-            .insert(key.clone(), args.procrastination()),
-        Cmd::Done { ref key } => procrastination_file.data_mut().remove(key),
+        Cmd::Once { ref key, .. } | Cmd::Repeat { ref key, .. } => {
+            procrastination_file
+                .data_mut()
+                .insert(key.clone(), args.procrastination());
+        }
+        Cmd::Done { ref key } => {
+            procrastination_file.data_mut().remove(key);
+        }
         Cmd::List => {
             for proc in procrastination_file.data().iter() {
                 // TODO print this for user instead of debug
                 println!("{}: {:#?}", proc.0, proc.1);
             }
-            None
+        }
+        Cmd::Sleep { ref key, timing } => {
+            if let Some(proc) = procrastination_file.data_mut().get_mut(key) {
+                proc.sleep = Some(Sleep { timing });
+            } else {
+                println!("No procrastination entry with key \"{key}\" exists");
+            }
         }
     };
 

@@ -80,8 +80,8 @@ impl Arguments {
                 },
                 sticky,
             ),
-            Cmd::Done { .. } | Cmd::List => {
-                panic!("can't create new procrastination from done or list cmd")
+            Cmd::Done { .. } | Cmd::List | Cmd::Sleep { .. } => {
+                panic!("can't create new procrastination from done, list or sleep cmd")
             }
         };
         Procrastination::new(
@@ -128,4 +128,9 @@ pub enum Cmd {
     },
     /// List all tasks you are procrastinating
     List,
+    Sleep {
+        /// A key to identify this procrastination
+        key: String,
+        timing: OnceTiming,
+    },
 }
