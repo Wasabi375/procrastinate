@@ -107,6 +107,128 @@ impl Procrastination {
     }
 }
 
+impl std::fmt::Display for Procrastination {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let write_nl = |f: &mut std::fmt::Formatter<'_>| {
+            if f.alternate() {
+                f.write_str("\n    ")
+            } else {
+                f.write_str("\n")
+            }
+        };
+
+        f.write_str(&self.title)?;
+
+        if !self.message.is_empty() {
+            write_nl(f)?;
+            write_nl(f)?;
+            f.write_str(&self.message)?;
+            write_nl(f)?;
+        }
+
+        let last_message = match self.timing {
+            Repeat::Once { .. } => "created at",
+            Repeat::Repeat { .. } => "last notified",
+        };
+        write_nl(f)?;
+        f.write_fmt(format_args!(
+            "{last_message}: {}",
+            format_timestamp(self.timestamp.naive_local())
+        ))?;
+        write_nl(f)?;
+        match self.next_notification() {
+            Ok((_, next)) => {
+                f.write_str("next notification: ")?;
+                format_upcoming_timestamp(next, f)?;
+            }
+            Err(e) => {
+                eprintln!("failed to get next notification time: {e:?}");
+            }
+        }
+
+        write_nl(f)?;
+        f.write_str("flags: ")?;
+        let repeat_flag = match self.timing {
+            Repeat::Once { .. } => "once",
+            Repeat::Repeat { .. } => "repeating",
+        };
+        f.write_str(repeat_flag)?;
+        if self.sticky {
+            f.write_str(", sticky")?;
+        }
+        if self.sleep.is_some() {
+            f.write_str(", sleeping")?;
+        }
+
+        Ok(())
+    }
+}
+
+fn format_upcoming_timestamp(
+    timestamp: NaiveDateTime,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let now = Local::now().naive_local();
+
+    if timestamp <= now {
+        return f.write_str("now");
+    }
+
+    let display_time = timestamp.second() != 0 || timestamp.minute() != 0 || timestamp.hour() != 0;
+    let today = Local::now().date_naive();
+    let tomorrow = today + TimeDelta::days(1);
+
+    if timestamp.date() == today {
+        if display_time {
+            return format_time(timestamp.time(), f);
+        } else {
+            return f.write_str("today");
+        }
+    }
+    if timestamp.date() == tomorrow {
+        f.write_str("tomorrow")?;
+        if display_time {
+            f.write_str(" at ")?;
+            format_time(timestamp.time(), f)?;
+        }
+        return Ok(());
+    }
+
+    f.write_fmt(format_args!("{}", format_timestamp(timestamp)))
+}
+
+fn format_time(time: NaiveTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let display_seconds = time.second() != 0;
+
+    let fmt_str = match display_seconds {
+        true => "%-k:%M:%S",
+        false => "%-k:%M",
+    };
+
+    f.write_fmt(format_args!("{}", time.format(fmt_str)))
+}
+
+fn format_timestamp<T: Into<NaiveDateTime>>(
+    timestamp: T,
+) -> DelayedFormat<chrono::format::StrftimeItems<'static>> {
+    let timestamp: NaiveDateTime = timestamp.into();
+
+    let display_seconds = timestamp.second() != 0;
+    let display_time = display_seconds || timestamp.minute() != 0 || timestamp.hour() != 0;
+    let display_year = timestamp.year() != Local::now().year();
+
+    let fmt_str = match (display_year, display_time, display_seconds) {
+        (true, true, true) => "%d.%m.%Y %-k:%M:%S",
+        (true, true, false) => "%d.%m.%Y %-k:%M",
+        (true, false, _) => "%d.%m.%Y",
+        (false, true, true) => "%d.%m %-k:%M:%S",
+        (false, true, false) => "%d.%m %-k:%M",
+        (false, false, _) => "%d.%m",
+    };
+
+    timestamp.format(fmt_str)
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Sleep {
     pub timing: OnceTiming,
