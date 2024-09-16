@@ -10,7 +10,9 @@ use std::{
     str::FromStr,
 };
 
-use chrono::{DateTime, Local, NaiveDateTime};
+use chrono::{
+    format::DelayedFormat, DateTime, Datelike, Local, NaiveDateTime, NaiveTime, TimeDelta, Timelike,
+};
 use file_lock::{FileLock, FileOptions};
 use notify_rust::Notification;
 use ron::ser::PrettyConfig;
@@ -117,6 +119,8 @@ impl std::fmt::Display for Procrastination {
             }
         };
 
+        let us_dates = f.sign_minus();
+
         f.write_str(&self.title)?;
 
         if !self.message.is_empty() {
@@ -133,13 +137,13 @@ impl std::fmt::Display for Procrastination {
         write_nl(f)?;
         f.write_fmt(format_args!(
             "{last_message}: {}",
-            format_timestamp(self.timestamp.naive_local())
+            format_timestamp(self.timestamp.naive_local(), us_dates)
         ))?;
         write_nl(f)?;
         match self.next_notification() {
             Ok((_, next)) => {
                 f.write_str("next notification: ")?;
-                format_upcoming_timestamp(next, f)?;
+                format_upcoming_timestamp(next, us_dates, f)?;
             }
             Err(e) => {
                 eprintln!("failed to get next notification time: {e:?}");
@@ -166,6 +170,7 @@ impl std::fmt::Display for Procrastination {
 
 fn format_upcoming_timestamp(
     timestamp: NaiveDateTime,
+    us_date: bool,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     let now = Local::now().naive_local();
@@ -194,7 +199,7 @@ fn format_upcoming_timestamp(
         return Ok(());
     }
 
-    f.write_fmt(format_args!("{}", format_timestamp(timestamp)))
+    f.write_fmt(format_args!("{}", format_timestamp(timestamp, us_date)))
 }
 
 fn format_time(time: NaiveTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -210,6 +215,7 @@ fn format_time(time: NaiveTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Re
 
 fn format_timestamp<T: Into<NaiveDateTime>>(
     timestamp: T,
+    us_date: bool,
 ) -> DelayedFormat<chrono::format::StrftimeItems<'static>> {
     let timestamp: NaiveDateTime = timestamp.into();
 
@@ -217,13 +223,19 @@ fn format_timestamp<T: Into<NaiveDateTime>>(
     let display_time = display_seconds || timestamp.minute() != 0 || timestamp.hour() != 0;
     let display_year = timestamp.year() != Local::now().year();
 
-    let fmt_str = match (display_year, display_time, display_seconds) {
-        (true, true, true) => "%d.%m.%Y %-k:%M:%S",
-        (true, true, false) => "%d.%m.%Y %-k:%M",
-        (true, false, _) => "%d.%m.%Y",
-        (false, true, true) => "%d.%m %-k:%M:%S",
-        (false, true, false) => "%d.%m %-k:%M",
-        (false, false, _) => "%d.%m",
+    let fmt_str = match (us_date, display_year, display_time, display_seconds) {
+        (false, true, true, true) => "%d.%m.%Y %-k:%M:%S",
+        (false, true, true, false) => "%d.%m.%Y %-k:%M",
+        (false, true, false, _) => "%d.%m.%Y",
+        (false, false, true, true) => "%d.%m %-k:%M:%S",
+        (false, false, true, false) => "%d.%m %-k:%M",
+        (false, false, false, _) => "%d.%m",
+        (true, true, true, true) => "%m.%d.%Y %-k:%M:%S",
+        (true, true, true, false) => "%m.%d.%Y %-k:%M",
+        (true, true, false, _) => "%m.%d.%Y",
+        (true, false, true, true) => "%m.%d %-k:%M:%S",
+        (true, false, true, false) => "%m.%d %-k:%M",
+        (true, false, false, _) => "%m.%d",
     };
 
     timestamp.format(fmt_str)

@@ -51,10 +51,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Cmd::Done { ref key } => {
             procrastination_file.data_mut().remove(key);
         }
-        Cmd::List => {
+        Cmd::List { debug, us_date } => {
             for proc in procrastination_file.data().iter() {
-                // TODO print this for user instead of debug
-                println!("{}: {:#}", proc.0, proc.1);
+                if debug {
+                    println!("{}: {:#?}", proc.0, proc.1);
+                } else {
+                    if us_date {
+                        println!("{}: {:-#}", proc.0, proc.1);
+                    } else {
+                        println!("{}: {:#}", proc.0, proc.1);
+                    }
+                }
             }
         }
         Cmd::Sleep { ref key, timing } => {

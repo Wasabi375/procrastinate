@@ -80,7 +80,7 @@ impl Arguments {
                 },
                 sticky,
             ),
-            Cmd::Done { .. } | Cmd::List | Cmd::Sleep { .. } => {
+            Cmd::Done { .. } | Cmd::List { .. } | Cmd::Sleep { .. } => {
                 panic!("can't create new procrastination from done, list or sleep cmd")
             }
         };
@@ -127,7 +127,16 @@ pub enum Cmd {
         key: String,
     },
     /// List all tasks you are procrastinating
-    List,
+    List {
+        /// print the procrastination list using rust debug print
+        #[arg(long, short)]
+        debug: bool,
+
+        /// print dates with the wrong month.day format
+        /// instead of the sensible day.month format
+        #[arg(long, short)]
+        us_date: bool,
+    },
     Sleep {
         /// A key to identify this procrastination
         key: String,
