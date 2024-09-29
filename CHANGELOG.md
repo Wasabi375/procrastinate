@@ -2,6 +2,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Changed
+
+- Changed `procrastinate list` output text from "last notified" to "last notification"
+
 ## [0.4.0] - 2024-09-17
 
 ### Added

@@ -132,7 +132,7 @@ impl std::fmt::Display for Procrastination {
 
         let last_message = match self.timing {
             Repeat::Once { .. } => "created at",
-            Repeat::Repeat { .. } => "last notified",
+            Repeat::Repeat { .. } => "last notification",
         };
         write_nl(f)?;
         f.write_fmt(format_args!(
