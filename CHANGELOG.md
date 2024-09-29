@@ -2,6 +2,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.4.1] - 2024-09-29
+
 ### Changed
 
 - Changed `procrastinate list` output text from "last notified" to "last notification"
@@ -24,6 +26,7 @@
 - background daemon to display scheduled notifications
 
 <!-- next-url -->
-[Unreleased]: https://github.com/wasabi375/procrastinate/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/wasabi375/procrastinate/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/wasabi375/procrastinate/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/wasabi375/procrastinate/compare/0.3.2...v0.4.0
 [0.3.2]: https://github.com/wasabi375/procrastinate/compare/cd38477e3a142789371bf512c0fe2fb524e97c80...0.3.2
