@@ -2,6 +2,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+- added "--ron" format option for "procrastinate list"
+
 ## [0.4.1] - 2024-09-29
 
 ### Changed

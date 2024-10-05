@@ -51,9 +51,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Cmd::Done { ref key } => {
             procrastination_file.data_mut().remove(key);
         }
-        Cmd::List { debug, us_date } => {
+        Cmd::List {
+            debug,
+            ron,
+            us_date,
+        } => {
             for proc in procrastination_file.data().iter() {
-                if debug {
+                if ron {
+                    if debug {
+                        eprintln!("ron option is overwritting the debug print option");
+                    }
+                    println!("{}", procrastination_file.ron().expect("Failed to serialize procrastination file into ron format. This should never happen"));
+                } else if debug {
                     println!("{}: {:#?}", proc.0, proc.1);
                 } else {
                     if us_date {

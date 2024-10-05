@@ -132,6 +132,10 @@ pub enum Cmd {
         #[arg(long, short)]
         debug: bool,
 
+        /// print the procrastination list in the ron format
+        #[arg(long, short)]
+        ron: bool,
+
         /// print dates with the wrong month.day format
         /// instead of the sensible day.month format
         #[arg(long, short)]

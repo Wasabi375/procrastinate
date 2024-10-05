@@ -436,6 +436,10 @@ impl ProcrastinationFile {
         self.lock.file.flush()?;
         Ok(())
     }
+
+    pub fn ron(&self) -> ron::Result<String> {
+        ron::ser::to_string_pretty(&self.data, PrettyConfig::default())
+    }
 }
 
 #[cfg(test)]
@@ -470,6 +474,6 @@ mod test {
             Repeat::Repeat {
                 timing: RepeatTiming::Delay(Duration::from_secs(2592000))
             }
-        )
+        );
     }
 }
