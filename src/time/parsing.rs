@@ -10,8 +10,8 @@ use nom::{
 use std::{ops::Add, str::FromStr, time::Duration};
 
 use super::{
-    RepeatExact, RoughInstant, SECONDS_IN_DAY, SECONDS_IN_HOUR, SECONDS_IN_MONTH, SECONDS_IN_WEEK,
-    SECONDS_IN_YEAR,
+    Delay, RepeatExact, RoughInstant, SECONDS_IN_DAY, SECONDS_IN_HOUR, SECONDS_IN_MONTH,
+    SECONDS_IN_WEEK, SECONDS_IN_YEAR,
 };
 
 /// Parse multiple ascii digits into I
@@ -85,8 +85,10 @@ where
     }
 }
 
-pub fn parse_duration(input: &str) -> IResult<&str, Duration> {
+pub fn parse_duration(input: &str) -> IResult<&str, Delay> {
+    let mut seconds = false;
     let mut result = None;
+
     let (input, duration) = opt(parse_year)(input)?;
     let (input, _) = opt(complete::char(' '))(input)?;
     result = reduce(result, duration, Duration::add);
@@ -105,18 +107,37 @@ pub fn parse_duration(input: &str) -> IResult<&str, Duration> {
 
     let (input, duration) = opt(parse_hours)(input)?;
     let (input, _) = opt(complete::char(' '))(input)?;
+    seconds |= duration.is_some();
     result = reduce(result, duration, Duration::add);
 
     let (input, duration) = opt(parse_minutes)(input)?;
     let (input, _) = opt(complete::char(' '))(input)?;
+    seconds |= duration.is_some();
     result = reduce(result, duration, Duration::add);
 
     let (input, duration) = opt(parse_seconds)(input)?;
+    seconds |= duration.is_some();
     result = reduce(result, duration, Duration::add);
 
-    match result {
-        Some(r) => Ok((input, r)),
-        None => fail(input),
+    match (result, seconds) {
+        (Some(duration), true) => Ok((
+            input,
+            Delay::Seconds(
+                duration
+                    .as_secs()
+                    .try_into()
+                    .expect("seconds value must fit within i64"),
+            ),
+        )),
+        (Some(duration), false) => Ok((
+            input,
+            Delay::Days(
+                (duration.as_secs() / SECONDS_IN_DAY)
+                    .try_into()
+                    .expect("days value must fit within i64"),
+            ),
+        )),
+        (None, _) => fail(input),
     }
 }
 
@@ -762,45 +783,36 @@ mod test {
 
     #[test]
     fn test_parse_duration() {
-        assert_eq!(parse_duration("12sec"), Ok(("", Duration::from_secs(12))));
-        assert_eq!(parse_duration("12s"), Ok(("", Duration::from_secs(12))));
-        assert_eq!(
-            parse_duration("12m"),
-            Ok(("", Duration::from_secs(12 * 60)))
-        );
+        assert_eq!(parse_duration("12sec"), Ok(("", Delay::Seconds(12))));
+        assert_eq!(parse_duration("12s"), Ok(("", Delay::Seconds(12))));
+        assert_eq!(parse_duration("12m"), Ok(("", Delay::Seconds(12 * 60))));
         assert_eq!(
             parse_duration("12h"),
-            Ok(("", Duration::from_secs(12 * SECONDS_IN_HOUR)))
+            Ok(("", Delay::Seconds(12 * SECONDS_IN_HOUR as i64)))
         );
-        assert_eq!(
-            parse_duration("12d"),
-            Ok(("", Duration::from_secs(12 * SECONDS_IN_DAY)))
-        );
-        assert_eq!(
-            parse_duration("12w"),
-            Ok(("", Duration::from_secs(12 * SECONDS_IN_WEEK)))
-        );
-        assert_eq!(
-            parse_duration("12M"),
-            Ok(("", Duration::from_secs(12 * SECONDS_IN_MONTH)))
-        );
-        assert_eq!(
-            parse_duration("12y"),
-            Ok(("", Duration::from_secs(12 * SECONDS_IN_YEAR)))
-        );
+        assert_eq!(parse_duration("12d"), Ok(("", Delay::Days(12))));
+        assert_eq!(parse_duration("12w"), Ok(("", Delay::Days(12 * 7))));
+        assert_eq!(parse_duration("12M"), Ok(("", Delay::Days(12 * 30))));
+        assert_eq!(parse_duration("12y"), Ok(("", Delay::Days(12 * 365))));
 
         assert_eq!(
             parse_duration("3d 5s"),
-            Ok(("", Duration::from_secs(3 * SECONDS_IN_DAY + 5)))
+            Ok(("", Delay::Seconds(3 * SECONDS_IN_DAY as i64 + 5)))
         );
-        assert_eq!(
-            parse_duration("2w 3d"),
-            Ok((
-                "",
-                Duration::from_secs(2 * SECONDS_IN_WEEK + 3 * SECONDS_IN_DAY)
-            ))
-        );
+        assert_eq!(parse_duration("2w 3d"), Ok(("", Delay::Days(2 * 7 + 3))));
         assert!(parse_duration("5").is_err());
         assert!(consume_all(parse_duration)("5d 3w").is_err());
+    }
+
+    #[test]
+    fn test_parse_duration_multiday_hours() {
+        assert_eq!(
+            parse_duration("24h"),
+            Ok(("", Delay::Seconds(24 * SECONDS_IN_HOUR as i64)))
+        );
+        assert_eq!(
+            parse_duration("48h"),
+            Ok(("", Delay::Seconds(48 * SECONDS_IN_HOUR as i64)))
+        );
     }
 }

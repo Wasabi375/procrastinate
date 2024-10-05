@@ -2,6 +2,20 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Breaking
+
+- Procrastinate now differentiates between Time and Day based notification delays.
+    A delay of "1d" will now be the same as tomorrow and will notify at the first
+    time notifications are checked on the next day. It will no longer notify in 
+    exactly 24 hours. 
+    To notify in 24 hours use "24h" instead.
+
+    This change comes with a update to the ron file format.
+    `Delay(( secs: <secs>, nanos: 0))` will need to be changed to `Delay(Seconds(<secs>))`
+    or `Delay(Days(<days>))`.
+    For ease of conversion there are 86400 seconds in a day and 2592000 seconds in
+    a month (30 days).
+
 ### Added
 
 - added "--ron" format option for "procrastinate list"

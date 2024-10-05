@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::str::FromStr;
 
 use chrono::{Datelike, Days, Local, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
 use nom::{branch::alt, IResult};
@@ -51,7 +51,19 @@ pub enum Repeat {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OnceTiming {
     Instant(RoughInstant),
-    Delay(Duration),
+    Delay(Delay),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RepeatTiming {
+    Exact(RepeatExact),
+    Delay(Delay),
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Delay {
+    Seconds(i64),
+    Days(i64),
 }
 
 fn parse_once_instant(input: &str) -> IResult<&str, OnceTiming> {
@@ -77,12 +89,6 @@ impl FromStr for OnceTiming {
             },
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RepeatTiming {
-    Exact(RepeatExact),
-    Delay(Duration),
 }
 
 fn parse_repeat_exact(input: &str) -> IResult<&str, RepeatTiming> {

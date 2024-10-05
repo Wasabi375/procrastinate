@@ -18,7 +18,7 @@ use notify_rust::Notification;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use time::{OnceTiming, TimeError};
+use time::{Delay, OnceTiming, TimeError};
 use unwrap_infallible::UnwrapInfallible;
 
 use crate::time::Repeat;
@@ -338,13 +338,20 @@ impl Procrastination {
     }
 }
 
+fn apply_delay(timestamp: NaiveDateTime, delay: Delay) -> NaiveDateTime {
+    match delay {
+        Delay::Seconds(secs) => timestamp + TimeDelta::seconds(secs),
+        Delay::Days(days) => (timestamp.date() + TimeDelta::days(days)).into(),
+    }
+}
+
 fn next_repeat_timing(
     timing: &time::RepeatTiming,
     last_timestamp: NaiveDateTime,
 ) -> Result<NaiveDateTime, TimeError> {
     Ok(match timing {
         time::RepeatTiming::Exact(e) => e.notification_date()?,
-        time::RepeatTiming::Delay(delay) => last_timestamp + *delay,
+        time::RepeatTiming::Delay(delay) => apply_delay(last_timestamp, *delay),
     })
 }
 
@@ -354,7 +361,7 @@ fn next_once_timing(
 ) -> Result<NaiveDateTime, TimeError> {
     Ok(match timing {
         time::OnceTiming::Instant(instant) => instant.notification_date()?,
-        time::OnceTiming::Delay(delay) => last_timestamp + *delay,
+        time::OnceTiming::Delay(delay) => apply_delay(last_timestamp, *delay),
     })
 }
 
@@ -439,41 +446,5 @@ impl ProcrastinationFile {
 
     pub fn ron(&self) -> ron::Result<String> {
         ron::ser::to_string_pretty(&self.data, PrettyConfig::default())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::time::Duration;
-
-    use crate::{
-        time::{Repeat, RepeatTiming},
-        Procrastination,
-    };
-
-    #[test]
-    fn can_deser_0_3_2_procrastination() {
-        let input = r#"(
-            title: "NixOs update required",
-            message: "It has been a month since the last update",
-            timing: Repeat(
-                timing: Delay((
-                    secs: 2592000,
-                    nanos: 0,
-                )),
-            ),
-            timestamp: "2024-09-12T04:41:38.864837768+02:00",
-        )"#;
-        let proc: Procrastination =
-            ron::from_str(input).expect("Failed to parse proc data from version 0.3.2");
-
-        assert_eq!(proc.title, "NixOs update required");
-        assert_eq!(proc.message, "It has been a month since the last update");
-        assert_eq!(
-            proc.timing,
-            Repeat::Repeat {
-                timing: RepeatTiming::Delay(Duration::from_secs(2592000))
-            }
-        );
     }
 }
