@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{convert::Infallible, str::FromStr};
 
 use chrono::{Datelike, Days, Local, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
 use nom::{branch::alt, IResult};
@@ -54,10 +54,58 @@ pub enum OnceTiming {
     Delay(Delay),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OnceTimingPart(String);
+
+impl TryInto<OnceTiming> for &[OnceTimingPart] {
+    type Error = nom::Err<String>;
+
+    fn try_into(self) -> Result<OnceTiming, Self::Error> {
+        let str = self
+            .as_ref()
+            .iter()
+            .map(|part| part.0.as_ref())
+            .fold(String::new(), |a, b| a + b + " ");
+        OnceTiming::from_str(str.trim())
+    }
+}
+
+impl FromStr for OnceTimingPart {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(OnceTimingPart(s.to_owned()))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RepeatTiming {
     Exact(RepeatExact),
     Delay(Delay),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepeatTimingPart(String);
+
+impl TryInto<RepeatTiming> for &[RepeatTimingPart] {
+    type Error = nom::Err<String>;
+
+    fn try_into(self) -> Result<RepeatTiming, Self::Error> {
+        let str = self
+            .as_ref()
+            .iter()
+            .map(|part| part.0.as_ref())
+            .fold(String::new(), |a, b| a + b + " ");
+        RepeatTiming::from_str(str.trim())
+    }
+}
+
+impl FromStr for RepeatTimingPart {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(RepeatTimingPart(s.to_owned()))
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -196,13 +244,19 @@ impl RepeatExact {
     pub fn notification_date(&self) -> Result<NaiveDateTime, TimeError> {
         let now = Local::now().naive_local();
         let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+        // TODO after fixing below TODOs: does this affect when I display notifications or is this
+        // broken already? Either way I need to ensure that notifications are handled correctly.
         match self {
             RepeatExact::DayOfMonth { day, time } => Ok(NaiveDateTime::new(
+                // TODO #13 I need to ensure that this is in the future. Meaning that if day is less
+                // than now.day() this needs to be incremented by a month (properly handling dec =>
+                // jan)
                 NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
                     .ok_or(TimeError::InvalidDay(*day))?,
                 time.unwrap_or(midnight),
             )),
             RepeatExact::DayOfWeek { day, time } => {
+                // TODO ensure that this is in the future (see TODO above)
                 let today = now.date();
                 let week_start = monday_same_week(&today);
                 let day = week_start + Days::new((*day).into());
@@ -210,6 +264,7 @@ impl RepeatExact {
             }
 
             RepeatExact::Daily { time } => {
+                // TODO ensure that this is in the future (see TODO above)
                 let today = now.date();
                 Ok(NaiveDateTime::new(today, time.unwrap_or(midnight)))
             }

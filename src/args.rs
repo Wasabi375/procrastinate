@@ -1,11 +1,11 @@
 use core::panic;
-use std::path::PathBuf;
+use std::{ops::Deref, path::PathBuf};
 
 use clap::{Args, Parser};
 use procrastinate::{
     arg_help::{ONCE_TIMING_ARG_DOC, REPEAT_TIMING_ARG_DOC},
     file_arg_doc, local_arg_doc,
-    time::{OnceTiming, Repeat, RepeatTiming},
+    time::{OnceTimingPart, Repeat, RepeatTimingPart},
     Procrastination,
 };
 
@@ -63,7 +63,7 @@ impl Arguments {
                 key,
                 args,
                 Repeat::Once {
-                    timing: timing.clone(),
+                    timing: timing.deref().try_into().unwrap(),
                 },
                 sticky,
             ),
@@ -76,7 +76,7 @@ impl Arguments {
                 key,
                 args,
                 Repeat::Repeat {
-                    timing: timing.clone(),
+                    timing: timing.deref().try_into().unwrap(),
                 },
                 sticky,
             ),
@@ -100,8 +100,9 @@ pub enum Cmd {
         /// A key to identify this procrastination
         key: String,
 
-        #[arg(help = ONCE_TIMING_ARG_DOC)]
-        timing: OnceTiming,
+        #[arg(help = ONCE_TIMING_ARG_DOC, trailing_var_arg = true)]
+        timing: Vec<OnceTimingPart>,
+
         #[command(flatten)]
         args: NotificationArgs,
         /// If set any any notification must be explicitly dismissed
@@ -113,10 +114,12 @@ pub enum Cmd {
         /// A key to identify this procrastination
         key: String,
 
-        #[arg(help = REPEAT_TIMING_ARG_DOC)]
-        timing: RepeatTiming,
+        #[arg(help = REPEAT_TIMING_ARG_DOC, trailing_var_arg = true)]
+        timing: Vec<RepeatTimingPart>,
+
         #[command(flatten)]
         args: NotificationArgs,
+
         /// If set any any notification must be explicitly dismissed
         #[arg(short, long)]
         sticky: bool,
@@ -144,6 +147,7 @@ pub enum Cmd {
     Sleep {
         /// A key to identify this procrastination
         key: String,
-        timing: OnceTiming,
+        #[arg(help = ONCE_TIMING_ARG_DOC, trailing_var_arg = true)]
+        timing: Vec<OnceTimingPart>,
     },
 }

@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use file_lock::{FileLock, FileOptions};
 use procrastinate::{
     procrastination_path, Error, ProcrastinationFile, ProcrastinationFileData, Sleep,
@@ -75,7 +77,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Cmd::Sleep { ref key, timing } => {
             if let Some(proc) = procrastination_file.data_mut().get_mut(key) {
-                proc.sleep = Some(Sleep { timing });
+                proc.sleep = Some(Sleep {
+                    timing: timing.deref().try_into().unwrap(),
+                });
             } else {
                 println!("No procrastination entry with key \"{key}\" exists");
             }
