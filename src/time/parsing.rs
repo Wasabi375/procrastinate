@@ -529,9 +529,11 @@ mod repeat_exact {
     /// Valid: `monthly <day> [ <time-of-day>]`
     /// `<day>`: First, second, of the month as 1, 2, etc
     pub fn parse_day_of_month(input: &str) -> IResult<&str, RepeatExact> {
-        let (input, _) = pair(tag("monthly"), complete::char(' '))(input)?;
+        let (input, _) = tag("monthly")(input)?;
 
-        let (input, day) = parse_digits(input)?;
+        let (input, day) = opt(pair(complete::char(' '), parse_digits))(input)?;
+
+        let day = day.map(|d| d.1).unwrap_or(1);
 
         if day == 0 || day > 31 {
             fail::<_, RepeatExact, _>(input)?;
@@ -649,6 +651,10 @@ mod repeat_exact {
 
         #[test]
         fn test_parse_day_of_month() {
+            assert_eq!(
+                parse_day_of_month("monthly"),
+                Ok(("", RepeatExact::DayOfMonth { day: 1, time: None }))
+            );
             assert_eq!(
                 parse_day_of_month("monthly 1"),
                 Ok(("", RepeatExact::DayOfMonth { day: 1, time: None }))
