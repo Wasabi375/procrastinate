@@ -2,6 +2,15 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Added
+
+- man files and shell completions (they can be generated using `cargo xtask`)
+
+### Fixed
+
+- [timings with spaces now work without enclosing them in quotation marks](https://github.com/Wasabi375/procrastinate/issues/11)
+- [The day after "monthly" is now optional](https://github.com/Wasabi375/procrastinate/issues/12)
+
 ## [0.5.0] - 2024-10-05
 
 ### Breaking
