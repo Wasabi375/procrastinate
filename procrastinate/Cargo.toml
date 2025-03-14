@@ -1,0 +1,11 @@
+[package]
+name = "procrastinate"
+version.workspace = true
+edition.workspace = true
+
+
+[dependencies]
+procrastinate = { path = "..", package = "procrastinate-lib" }
+clap.workspace = true
+file-lock.workspace = true
+

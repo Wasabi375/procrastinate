@@ -1,3 +1,5 @@
+pub mod args;
+
 use std::ops::Deref;
 
 use file_lock::{FileLock, FileOptions};
@@ -6,8 +8,6 @@ use procrastinate::{
 };
 
 use crate::args::{Arguments, Cmd};
-
-pub mod args;
 
 fn open_or_create(args: &Arguments) -> Result<ProcrastinationFile, Error> {
     let local = args.local;

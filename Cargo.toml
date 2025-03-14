@@ -1,13 +1,34 @@
-[package]
-name = "procrastinate"
+
+[package] 
+name = "procrastinate-lib"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+chrono.workspace = true
+constcat.workspace = true
+file-lock.workspace = true
+log.workspace = true
+nom.workspace = true
+notify-rust.workspace = true
+ron.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+unwrap-infallible.workspace = true
+
+[workspace.package]
 version = "0.5.0"
 edition = "2021"
 
-rust-version = "1.77.2"
+[workspace]
+members = [
+    "procrastinate",
+    "daemon",
+    "work",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[workspace.dependencies]
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive"] }
 constcat = "0.5.0"
@@ -24,14 +45,7 @@ tokio = { version = "1.37.0", features = ["rt", "macros", "rt-multi-thread", "ti
 tokio-stream = { version = "0.1.15", features = ["sync"] }
 unwrap-infallible = "0.1.5"
 
-[[bin]]
-name = "procrastinate"
 
-[[bin]]
-name = "procrastinate-work"
-
-[[bin]]
-name = "procrastinate-daemon"
 
 [package.metadata.release]
 allow-branch = ["main"]

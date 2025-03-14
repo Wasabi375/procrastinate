@@ -1311,21 +1311,48 @@ dependencies = [
 name = "procrastinate"
 version = "0.5.0"
 dependencies = [
+ "clap",
+ "file-lock",
+ "procrastinate-lib",
+]
+
+[[package]]
+name = "procrastinate-daemon"
+version = "0.1.0"
+dependencies = [
  "chrono",
  "clap",
- "constcat",
  "env_logger",
+ "log",
+ "notify",
+ "notify-rust",
+ "procrastinate-lib",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
+name = "procrastinate-lib"
+version = "0.5.0"
+dependencies = [
+ "chrono",
+ "constcat",
  "file-lock",
  "log",
  "nom",
- "notify",
  "notify-rust",
  "ron",
  "serde",
  "thiserror",
- "tokio",
- "tokio-stream",
  "unwrap-infallible",
+]
+
+[[package]]
+name = "procrastinate-work"
+version = "0.5.0"
+dependencies = [
+ "clap",
+ "procrastinate-lib",
 ]
 
 [[package]]
