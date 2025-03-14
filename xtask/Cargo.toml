@@ -1,0 +1,18 @@
+[package]
+name = "xtask"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+procrastinate = { path = "..", package = "procrastinate-lib" }
+clap.workspace = true
+clap_mangen.workspace = true
+clap_complete.workspace = true
+clap_complete_nushell.workspace = true
+
+procrastiante-bin = { path = "../procrastinate", package = "procrastinate" }
+procrastinate-daemon = { path = "../daemon" }
+procrastinate-work = { path = "../work" }
+

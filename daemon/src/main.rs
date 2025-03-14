@@ -1,19 +1,16 @@
-use core::panic;
-use std::{
-    error::Error,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+mod args;
 
+use core::panic;
+use std::{error::Error, path::Path, time::Duration};
+
+use args::Args;
 use chrono::Local;
 use clap::Parser;
 use env_logger::Builder;
 use log::LevelFilter;
 use notify::{RecommendedWatcher, Watcher};
 use notify_rust::Notification;
-use procrastinate::{
-    check_key_arg_doc, file_arg_doc, local_arg_doc, procrastination_path, ProcrastinationFile,
-};
+use procrastinate::{procrastination_path, ProcrastinationFile};
 use tokio::{
     pin, select,
     signal::unix::{signal, SignalKind},
@@ -67,34 +64,6 @@ fn check_for_notifications(
 
     log::info!("Next notification check in {:?}", until_any_next);
     Ok(until_any_next.clamp(min, max))
-}
-
-#[derive(Parser, Debug)]
-#[command(version, about)]
-/// Continously checks notifications for all finished procrastinations.
-///
-/// To only check for notifications once use `procrastinate-work` insetead.
-pub struct Args {
-    #[arg(help = check_key_arg_doc!())]
-    pub key: Option<String>,
-
-    #[arg(short, long, help = local_arg_doc!())]
-    pub local: bool,
-
-    /// minimum time to wait before checking pending notifications in seconds
-    #[arg(short, long, default_value_t = 1)]
-    pub min: u64,
-
-    /// max time to wait before checking pending notifications in seconds
-    #[arg(short('M'), long, default_value_t = 300)]
-    pub max: u64,
-
-    /// procrastinate at file
-    #[arg(short, long, help = file_arg_doc!())]
-    pub file: Option<PathBuf>,
-
-    #[arg(short, long)]
-    pub verbose: bool,
 }
 
 fn init_logger(verbose: bool) {

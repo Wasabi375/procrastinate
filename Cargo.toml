@@ -25,12 +25,15 @@ members = [
     "procrastinate",
     "daemon",
     "work",
+    "xtask",
 ]
-
 
 [workspace.dependencies]
 chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.32", features = ["derive"] }
+clap_mangen = "0.2.26"
+clap_complete = "4.5.46"
+clap_complete_nushell = "4.5.5"
 constcat = "0.5.0"
 env_logger = "0.11.3"
 file-lock = "2.1.11"
@@ -44,8 +47,6 @@ thiserror = "1.0.59"
 tokio = { version = "1.37.0", features = ["rt", "macros", "rt-multi-thread", "time", "sync", "signal"] }
 tokio-stream = { version = "0.1.15", features = ["sync"] }
 unwrap-infallible = "0.1.5"
-
-
 
 [package.metadata.release]
 allow-branch = ["main"]
