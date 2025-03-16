@@ -10,6 +10,7 @@
 
 - [timings with spaces now work without enclosing them in quotation marks](https://github.com/Wasabi375/procrastinate/issues/11)
 - [The day after "monthly" is now optional](https://github.com/Wasabi375/procrastinate/issues/12)
+- [Fixed next notification date in list command](https://github.com/Wasabi375/procrastinate/issues/13)
 
 ## [0.5.0] - 2024-10-05
 

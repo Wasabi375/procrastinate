@@ -1,6 +1,6 @@
 use std::{convert::Infallible, str::FromStr};
 
-use chrono::{Datelike, Days, Local, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
+use chrono::{Datelike, Days, Months, NaiveDate, NaiveDateTime, NaiveTime, Weekday};
 use nom::{branch::alt, IResult};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -10,6 +10,8 @@ use crate::nom_ext::consume_all;
 use self::parsing::{parse_duration, parse_rough_instant};
 
 pub mod parsing;
+
+const MIDNIGHT: NaiveTime = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
 
 const SECONDS_IN_HOUR: u64 = 60 * 60;
 const SECONDS_IN_DAY: u64 = SECONDS_IN_HOUR * 24;
@@ -186,38 +188,38 @@ pub enum RoughInstant {
 #[derive(Debug, Error)]
 pub enum TimeError {
     #[error("{0} is not a valid day")]
-    InvalidDay(u8),
+    InvalidDay(u32),
     #[error("{0} is not a valid month")]
-    InvalidMonth(u8),
-}
-
-fn monday_same_week(date: &NaiveDate) -> NaiveDate {
-    let days_since_mon = date.weekday().days_since(Weekday::Mon);
-    *date - Days::new(days_since_mon.into())
+    InvalidMonth(u32),
 }
 
 impl RoughInstant {
-    pub fn notification_date(&self) -> Result<NaiveDateTime, TimeError> {
-        let now = Local::now().naive_local();
-        let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+    pub fn notification_date(
+        &self,
+        last_timestamp: NaiveDateTime,
+    ) -> Result<NaiveDateTime, TimeError> {
         match self {
-            RoughInstant::DayOfMonth { day, time } => Ok(NaiveDateTime::new(
-                NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
-                    .ok_or(TimeError::InvalidDay(*day))?,
-                time.unwrap_or(midnight),
-            )),
+            RoughInstant::DayOfMonth { day, time } => {
+                day_of_month_after(last_timestamp, *day as u32, *time)
+            }
             RoughInstant::DayOfWeek { day, time } => {
-                let today = now.date();
-                let week_start = monday_same_week(&today);
-                let day = week_start + Days::new((*day).into());
-                Ok(NaiveDateTime::new(day, time.clone().unwrap_or(midnight)))
+                day_of_week_after(last_timestamp, *day as u32, *time)
             }
             RoughInstant::Date { date } => Ok(date.clone()),
-            RoughInstant::Month { month } => Ok(NaiveDateTime::new(
-                NaiveDate::from_ymd_opt(now.year(), *month as u32, 1)
-                    .ok_or(TimeError::InvalidMonth(*month))?,
-                midnight,
-            )),
+            RoughInstant::Month { month } => {
+                let same_year = NaiveDateTime::new(
+                    NaiveDate::from_ymd_opt(last_timestamp.year(), *month as u32, 1)
+                        .ok_or(TimeError::InvalidMonth(*month as u32))?,
+                    MIDNIGHT,
+                );
+                if same_year < last_timestamp {
+                    Ok(same_year
+                        .checked_add_months(Months::new(12))
+                        .expect("Date overflow happens sometime in 262,143"))
+                } else {
+                    Ok(same_year)
+                }
+            }
         }
     }
 }
@@ -241,33 +243,90 @@ pub enum RepeatExact {
 }
 
 impl RepeatExact {
-    pub fn notification_date(&self) -> Result<NaiveDateTime, TimeError> {
-        let now = Local::now().naive_local();
-        let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
-        // TODO after fixing below TODOs: does this affect when I display notifications or is this
-        // broken already? Either way I need to ensure that notifications are handled correctly.
+    pub fn notification_date(
+        &self,
+        last_timestamp: NaiveDateTime,
+    ) -> Result<NaiveDateTime, TimeError> {
         match self {
-            RepeatExact::DayOfMonth { day, time } => Ok(NaiveDateTime::new(
-                // TODO #13 I need to ensure that this is in the future. Meaning that if day is less
-                // than now.day() this needs to be incremented by a month (properly handling dec =>
-                // jan)
-                NaiveDate::from_ymd_opt(now.year(), now.month(), *day as u32)
-                    .ok_or(TimeError::InvalidDay(*day))?,
-                time.unwrap_or(midnight),
-            )),
-            RepeatExact::DayOfWeek { day, time } => {
-                // TODO ensure that this is in the future (see TODO above)
-                let today = now.date();
-                let week_start = monday_same_week(&today);
-                let day = week_start + Days::new((*day).into());
-                Ok(NaiveDateTime::new(day, time.clone().unwrap_or(midnight)))
+            RepeatExact::DayOfMonth { day, time } => {
+                day_of_month_after(last_timestamp, *day as u32, *time)
             }
-
+            RepeatExact::DayOfWeek { day, time } => {
+                day_of_week_after(last_timestamp, *day as u32, *time)
+            }
             RepeatExact::Daily { time } => {
-                // TODO ensure that this is in the future (see TODO above)
-                let today = now.date();
-                Ok(NaiveDateTime::new(today, time.unwrap_or(midnight)))
+                let same_day = NaiveDateTime::new(last_timestamp.date(), time.unwrap_or(MIDNIGHT));
+                if same_day < last_timestamp {
+                    Ok(same_day
+                        .checked_add_days(Days::new(1))
+                        .expect("Date overflow happens sometime in 262,143"))
+                } else {
+                    Ok(same_day)
+                }
             }
         }
+    }
+}
+
+fn monday_same_week(date: &NaiveDate) -> NaiveDate {
+    let days_since_mon = date.weekday().days_since(Weekday::Mon);
+    *date - Days::new(days_since_mon.into())
+}
+
+fn day_of_month(year: i32, month: u32, mut day: u32) -> Result<NaiveDate, TimeError> {
+    if day > 31 {
+        return Err(TimeError::InvalidDay(day));
+    }
+    if month > 12 {
+        return Err(TimeError::InvalidMonth(month));
+    }
+    let orig_day = day;
+    while day > 0 && day <= 31 {
+        if let Some(date) = NaiveDate::from_ymd_opt(year, month, day) {
+            return Ok(date);
+        }
+        day -= 1;
+    }
+    panic!("Naive Date invalid: {year}-{month}-{orig_day}");
+}
+
+fn day_of_month_after(
+    last_timestamp: NaiveDateTime,
+    day: u32,
+    time: Option<NaiveTime>,
+) -> Result<NaiveDateTime, TimeError> {
+    let date_same_month = NaiveDateTime::new(
+        day_of_month(last_timestamp.year(), last_timestamp.month(), day)?,
+        time.unwrap_or(MIDNIGHT),
+    );
+    if date_same_month < last_timestamp {
+        let next_month = last_timestamp
+            .checked_add_months(Months::new(1))
+            .expect("Date overflow happens sometime in 262,143");
+
+        let date_next_month = NaiveDateTime::new(
+            day_of_month(next_month.year(), next_month.month(), day)?,
+            time.unwrap_or(MIDNIGHT),
+        );
+        Ok(date_next_month)
+    } else {
+        Ok(date_same_month)
+    }
+}
+
+fn day_of_week_after(
+    last_timestamp: NaiveDateTime,
+    day: u32,
+    time: Option<NaiveTime>,
+) -> Result<NaiveDateTime, TimeError> {
+    let week_start = monday_same_week(&last_timestamp.date());
+    let day = week_start + Days::new(day.into());
+    let date_same_week = NaiveDateTime::new(day, time.clone().unwrap_or(MIDNIGHT));
+    if date_same_week < last_timestamp {
+        Ok(date_same_week
+            .checked_add_days(Days::new(7))
+            .expect("Date overflow happens sometime in 262,143"))
+    } else {
+        Ok(date_same_week)
     }
 }

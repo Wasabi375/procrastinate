@@ -311,7 +311,8 @@ impl Procrastination {
     pub fn should_notify(&self) -> Result<NotificationType, TimeError> {
         let last_timestamp = self.timestamp.naive_local();
         let (typ, next_notification) = self.next_notification()?;
-        if next_notification > last_timestamp && Local::now().naive_local() > next_notification {
+        if Local::now().naive_local() > next_notification {
+            assert!(next_notification > last_timestamp);
             Ok(typ)
         } else {
             Ok(NotificationType::None)
@@ -350,7 +351,7 @@ fn next_repeat_timing(
     last_timestamp: NaiveDateTime,
 ) -> Result<NaiveDateTime, TimeError> {
     Ok(match timing {
-        time::RepeatTiming::Exact(e) => e.notification_date()?,
+        time::RepeatTiming::Exact(e) => e.notification_date(last_timestamp)?,
         time::RepeatTiming::Delay(delay) => apply_delay(last_timestamp, *delay),
     })
 }
@@ -360,7 +361,7 @@ fn next_once_timing(
     last_timestamp: NaiveDateTime,
 ) -> Result<NaiveDateTime, TimeError> {
     Ok(match timing {
-        time::OnceTiming::Instant(instant) => instant.notification_date()?,
+        time::OnceTiming::Instant(instant) => instant.notification_date(last_timestamp)?,
         time::OnceTiming::Delay(delay) => apply_delay(last_timestamp, *delay),
     })
 }
