@@ -187,7 +187,7 @@ mod rough_instant {
     pub fn parse_day_of_week(input: &str) -> IResult<&str, RoughInstant> {
         use nom::Parser;
         let (input, day) = alt_many(
-            DAYS_IN_WEEK.map(|tag| tag_no_case::<&str, &str, nom::error::Error<&str>>(tag)),
+            DAYS_IN_WEEK.map(tag_no_case::<&str, &str, nom::error::Error<&str>>),
         )
         .parse(input)?;
 
@@ -235,7 +235,7 @@ mod rough_instant {
     pub fn parse_month(input: &str) -> IResult<&str, RoughInstant> {
         use nom::Parser;
         let (input, month) =
-            alt_many(MONTHS.map(|tag| tag_no_case::<&str, &str, nom::error::Error<&str>>(tag)))
+            alt_many(MONTHS.map(tag_no_case::<&str, &str, nom::error::Error<&str>>))
                 .parse(input)?;
 
         let Some(month) = MONTHS
@@ -550,7 +550,7 @@ mod repeat_exact {
     pub fn parse_day_of_week(input: &str) -> IResult<&str, RepeatExact> {
         use nom::Parser;
         let (input, day) = alt_many(
-            DAYS_IN_WEEK.map(|tag| tag_no_case::<&str, &str, nom::error::Error<&str>>(tag)),
+            DAYS_IN_WEEK.map(tag_no_case::<&str, &str, nom::error::Error<&str>>),
         )
         .parse(input)?;
 

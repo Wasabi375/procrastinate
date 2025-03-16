@@ -205,7 +205,7 @@ impl RoughInstant {
             RoughInstant::DayOfWeek { day, time } => {
                 day_of_week_after(last_timestamp, *day as u32, *time)
             }
-            RoughInstant::Date { date } => Ok(date.clone()),
+            RoughInstant::Date { date } => Ok(*date),
             RoughInstant::Month { month } => {
                 let same_year = NaiveDateTime::new(
                     NaiveDate::from_ymd_opt(last_timestamp.year(), *month as u32, 1)
@@ -321,7 +321,7 @@ fn day_of_week_after(
 ) -> Result<NaiveDateTime, TimeError> {
     let week_start = monday_same_week(&last_timestamp.date());
     let day = week_start + Days::new(day.into());
-    let date_same_week = NaiveDateTime::new(day, time.clone().unwrap_or(MIDNIGHT));
+    let date_same_week = NaiveDateTime::new(day, time.unwrap_or(MIDNIGHT));
     if date_same_week < last_timestamp {
         Ok(date_same_week
             .checked_add_days(Days::new(7))

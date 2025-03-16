@@ -146,7 +146,7 @@ impl std::fmt::Display for Procrastination {
                 format_upcoming_timestamp(next, us_dates, f)?;
             }
             Err(e) => {
-                eprintln!("failed to get next notification time: {e:?}");
+                writeln!(f, "failed to get next notification time: {e:?}")?;
             }
         }
 
@@ -371,8 +371,8 @@ pub struct ProcrastinationFile {
     lock: FileLock,
 }
 
-pub const FILE_NAME: &'static str = "procrastination.ron";
-pub const DEFAULT_LOCATION: &'static str = ".local/share";
+pub const FILE_NAME: &str = "procrastination.ron";
+pub const DEFAULT_LOCATION: &str = ".local/share";
 
 pub fn data_dir_path() -> PathBuf {
     if let Ok(config) = env::var("XDG_DATA_HOME") {
