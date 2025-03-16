@@ -5,7 +5,7 @@ edition.workspace = true
 
 
 [dependencies]
-procrastinate = { path = "..", package = "procrastinate-lib" }
+procrastinate-lib = { path = ".." }
 clap.workspace = true
 file-lock.workspace = true
 

@@ -3,7 +3,7 @@ pub mod args;
 use std::ops::Deref;
 
 use file_lock::{FileLock, FileOptions};
-use procrastinate::{
+use procrastinate_lib::{
     procrastination_path, Error, ProcrastinationFile, ProcrastinationFileData, Sleep,
 };
 

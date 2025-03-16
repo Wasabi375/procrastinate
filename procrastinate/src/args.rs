@@ -2,7 +2,7 @@ use core::panic;
 use std::{ops::Deref, path::PathBuf};
 
 use clap::{Args, Parser};
-use procrastinate::{
+use procrastinate_lib::{
     arg_help::{ONCE_TIMING_ARG_DOC, REPEAT_TIMING_ARG_DOC},
     file_arg_doc, local_arg_doc,
     time::{OnceTimingPart, Repeat, RepeatTimingPart},
