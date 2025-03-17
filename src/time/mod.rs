@@ -11,7 +11,14 @@ use self::parsing::{parse_duration, parse_rough_instant};
 
 pub mod parsing;
 
-const MIDNIGHT: NaiveTime = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+// TODO use unwrap when const stable (rust 1.83)
+const MIDNIGHT: NaiveTime = {
+    let this = NaiveTime::from_hms_opt(0, 0, 0);
+    match this {
+        Some(val) => val,
+        None => unreachable!(),
+    }
+};
 
 const SECONDS_IN_HOUR: u64 = 60 * 60;
 const SECONDS_IN_DAY: u64 = SECONDS_IN_HOUR * 24;

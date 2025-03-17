@@ -2,6 +2,10 @@
 
 ## [Unreleased] - ReleaseDate
 
+### Fixed
+
+- Ensure compatability with rust 1.82
+
 ## [0.6.0] - 2025-03-16
 
 ### Added
