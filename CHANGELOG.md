@@ -2,6 +2,8 @@
 
 ## [Unreleased] - ReleaseDate
 
+## [0.6.1] - 2025-03-17
+
 ### Fixed
 
 - Ensure compatability with rust 1.82
@@ -62,7 +64,8 @@
 - background daemon to display scheduled notifications
 
 <!-- next-url -->
-[Unreleased]: https://github.com/wasabi375/procrastinate/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/wasabi375/procrastinate/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/wasabi375/procrastinate/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/wasabi375/procrastinate/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/wasabi375/procrastinate/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/wasabi375/procrastinate/compare/v0.4.0...v0.4.1

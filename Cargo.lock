@@ -1338,7 +1338,7 @@ dependencies = [
 
 [[package]]
 name = "procrastinate"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap",
  "file-lock",
@@ -1362,7 +1362,7 @@ dependencies = [
 
 [[package]]
 name = "procrastinate-lib"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "constcat",
@@ -1378,7 +1378,7 @@ dependencies = [
 
 [[package]]
 name = "procrastinate-work"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap",
  "procrastinate-lib",
@@ -2204,7 +2204,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "clap",
  "clap_complete",
